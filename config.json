@@ -1,0 +1,21 @@
+{
+  "defaults": {
+    "interval": 30000,
+    "timeout": 10000
+  },
+  "pages": [
+    {
+      "name": "Google",
+      "url": "https://www.google.com"
+    },
+    {
+      "name": "GitHub",
+      "url": "https://github.com"
+    },
+    {
+      "name": "Example (offline)",
+      "url": "https://this-url-does-not-exist.example.com",
+      "timeout": 5000
+    }
+  ]
+}
