@@ -1,11 +1,13 @@
-import type { MonitorConfig } from './types.js';
+import type { MonitorConfig, CheckResult } from './types.js';
 import { getPageConfig } from './config.js';
 import { checkPage } from './checker.js';
 import { logger } from './logger.js';
+import { writeStatus, appendHistory, cleanupOldHistory } from './status-writer.js';
 
 export class Monitor {
   private config: MonitorConfig;
   private timers: Map<string, NodeJS.Timeout> = new Map();
+  private results: Map<string, CheckResult> = new Map();
   private running = false;
 
   constructor(config: MonitorConfig) {
@@ -19,6 +21,15 @@ export class Monitor {
     }
 
     this.running = true;
+
+    // Cleanup old history entries on startup
+    cleanupOldHistory();
+
+    if (this.config.pages.length === 0) {
+      logger.info('Monitor started with no pages. Add pages via the dashboard.');
+      return;
+    }
+
     logger.info(`Starting monitor for ${this.config.pages.length} page(s)`);
 
     for (const page of this.config.pages) {
@@ -46,6 +57,10 @@ export class Monitor {
   private scheduleCheck(page: Required<(typeof this.config.pages)[0]>): void {
     const check = async () => {
       const result = await checkPage(page);
+
+      this.results.set(page.name, result);
+      writeStatus(this.results);
+      appendHistory(result);
 
       if (result.success) {
         logger.status(result.name, result.status, result.responseTime, true);

@@ -1,12 +1,26 @@
-import { loadConfig } from './config.js';
+import { loadPagesFromJson } from './pages-loader.js';
 import { Monitor } from './monitor.js';
 import { logger } from './logger.js';
+import type { MonitorConfig } from './types.js';
 
 function main(): void {
   try {
     logger.info('Monitor Pages v1.0.0');
 
-    const config = loadConfig();
+    const pages = loadPagesFromJson();
+
+    if (pages.length === 0) {
+      logger.warn('No enabled pages found in data/pages.json. Waiting for pages to be added...');
+    }
+
+    const config: MonitorConfig = {
+      pages,
+      defaults: {
+        interval: 30000,
+        timeout: 10000,
+      },
+    };
+
     const monitor = new Monitor(config);
 
     process.on('SIGINT', () => {

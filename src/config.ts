@@ -51,5 +51,6 @@ export function getPageConfig(
     url: page.url,
     interval: page.interval ?? defaults?.interval ?? DEFAULT_INTERVAL,
     timeout: page.timeout ?? defaults?.timeout ?? DEFAULT_TIMEOUT,
+    soft404Patterns: page.soft404Patterns ?? [],
   };
 }
