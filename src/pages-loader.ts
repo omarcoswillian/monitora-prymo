@@ -49,3 +49,39 @@ export function loadPagesFromJson(): PageConfig[] {
     return [];
   }
 }
+
+/**
+ * Load all page entries (for scheduler use)
+ * Returns full PageEntry objects with id and enabled status
+ */
+export function loadAllPageEntries(): PageEntry[] {
+  ensureDataDir();
+
+  if (!existsSync(PAGES_FILE)) {
+    writeFileSync(PAGES_FILE, '[]', 'utf-8');
+    return [];
+  }
+
+  try {
+    const content = readFileSync(PAGES_FILE, 'utf-8');
+    return JSON.parse(content) as PageEntry[];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Load page entries formatted for scheduler (with name including client)
+ */
+export function loadPagesForScheduler() {
+  const entries = loadAllPageEntries();
+  return entries.map(entry => ({
+    id: entry.id,
+    name: `[${entry.client}] ${entry.name}`,
+    url: entry.url,
+    interval: entry.interval,
+    timeout: entry.timeout,
+    enabled: entry.enabled,
+    soft404Patterns: entry.soft404Patterns,
+  }));
+}

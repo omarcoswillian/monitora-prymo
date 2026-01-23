@@ -23,7 +23,10 @@ interface DailyUptime {
   uptime: number
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const clientFilter = searchParams.get('client')
+
   const historyFile = join(process.cwd(), '..', 'data', 'history.json')
 
   if (!existsSync(historyFile)) {
@@ -35,7 +38,14 @@ export async function GET() {
 
   try {
     const content = readFileSync(historyFile, 'utf-8')
-    const history: HistoryEntry[] = JSON.parse(content)
+    let history: HistoryEntry[] = JSON.parse(content)
+
+    // Filter by client if specified
+    // pageId format is "[ClientName] PageName"
+    if (clientFilter) {
+      const clientPrefix = `[${clientFilter}]`
+      history = history.filter(e => e.pageId.startsWith(clientPrefix))
+    }
 
     const now = new Date()
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)

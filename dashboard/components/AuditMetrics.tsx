@@ -1,5 +1,7 @@
 'use client'
 
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+
 interface AuditAverages {
   performance: number | null
   accessibility: number | null
@@ -23,11 +25,11 @@ function TrendIcon({ trend }: { trend: 'up' | 'down' | 'stable' | null }) {
 
   switch (trend) {
     case 'up':
-      return <span className="trend-icon trend-up">↑</span>
+      return <span className="trend-icon trend-up"><TrendingUp size={14} /></span>
     case 'down':
-      return <span className="trend-icon trend-down">↓</span>
+      return <span className="trend-icon trend-down"><TrendingDown size={14} /></span>
     case 'stable':
-      return <span className="trend-icon trend-stable">→</span>
+      return <span className="trend-icon trend-stable"><Minus size={14} /></span>
   }
 }
 

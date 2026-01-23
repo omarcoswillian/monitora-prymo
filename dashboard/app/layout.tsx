@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
+import SessionProvider from '@/components/SessionProvider'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Monitor Dashboard',
-  description: 'Web page monitoring dashboard',
+  title: 'Prymo Monitora',
+  description: 'Dashboard de monitoramento de paginas web',
 }
 
 export default function RootLayout({
@@ -12,8 +13,12 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="pt-BR">
+      <body>
+        <SessionProvider>
+          {children}
+        </SessionProvider>
+      </body>
     </html>
   )
 }

@@ -1,5 +1,8 @@
 'use client'
 
+import Link from 'next/link'
+import { ChevronRight, AlertTriangle } from 'lucide-react'
+
 type StatusLabel = 'Online' | 'Offline' | 'Lento' | 'Soft 404'
 
 interface StatusEntry {
@@ -109,7 +112,11 @@ export default function ClientCards({
     return null
   }
 
-  const handleClick = (clientId: string) => {
+  const handleClick = (clientId: string, e: React.MouseEvent) => {
+    // If clicking the detail link, don't toggle selection
+    if ((e.target as HTMLElement).closest('.client-card-detail-link')) {
+      return
+    }
     if (selectedClientId === clientId) {
       onSelectClient(null) // Toggle off
     } else {
@@ -126,24 +133,35 @@ export default function ClientCards({
           const hasErrors = client.activeErrors > 0
 
           return (
-            <button
+            <div
               key={client.id}
               className={`client-card ${isSelected ? 'client-card-selected' : ''} ${hasErrors ? 'client-card-error' : ''}`}
-              onClick={() => handleClick(client.id)}
+              onClick={(e) => handleClick(client.id, e)}
             >
               <div className="client-card-header">
                 <span className="client-card-name">{client.name}</span>
-                {hasErrors && (
-                  <span className="client-card-alert">
-                    {client.activeErrors} erro{client.activeErrors > 1 ? 's' : ''}
-                  </span>
-                )}
+                <div className="client-card-actions">
+                  {hasErrors && (
+                    <span className="client-card-alert">
+                      <AlertTriangle size={12} />
+                      {client.activeErrors}
+                    </span>
+                  )}
+                  <Link
+                    href={`/clients/${encodeURIComponent(client.id)}`}
+                    className="client-card-detail-link"
+                    title="Ver detalhes"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ChevronRight size={16} />
+                  </Link>
+                </div>
               </div>
 
               <div className="client-card-stats">
                 <div className="client-stat">
                   <span className="client-stat-value">{client.totalPages}</span>
-                  <span className="client-stat-label">páginas</span>
+                  <span className="client-stat-label">paginas</span>
                 </div>
                 <div className="client-stat client-stat-ok">
                   <span className="client-stat-value">{client.online}</span>
@@ -185,7 +203,7 @@ export default function ClientCards({
                   </span>
                 </div>
               )}
-            </button>
+            </div>
           )
         })}
       </div>
