@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { FileText, Download, ChevronRight, Home, Calendar } from 'lucide-react'
+import { GenerateReportButton } from '../../components/GenerateReportButton'
+import { ToastContainer, useToast } from '../../components/Toast'
 
 interface Report {
   week: string
@@ -19,6 +21,7 @@ export default function ReportsPage() {
   const [selectedReport, setSelectedReport] = useState<{ week: string; client: string } | null>(null)
   const [reportContent, setReportContent] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const { toasts, removeToast, success, error } = useToast()
 
   useEffect(() => {
     fetchReports()
@@ -63,6 +66,15 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url)
   }
 
+  const handleGenerateSuccess = () => {
+    success('Relatorio(s) gerado(s) com sucesso!')
+    fetchReports()
+  }
+
+  const handleGenerateError = (message: string) => {
+    error(message)
+  }
+
   // Group reports by week
   const groupedReports: GroupedReports = reports.reduce((acc, report) => {
     if (!acc[report.week]) {
@@ -104,6 +116,12 @@ export default function ReportsPage() {
             <h1>Relatorios Semanais</h1>
             <p>Relatorios gerados automaticamente para cada cliente</p>
           </div>
+          <div className="header-actions">
+            <GenerateReportButton
+              onSuccess={handleGenerateSuccess}
+              onError={handleGenerateError}
+            />
+          </div>
         </div>
       </header>
 
@@ -138,9 +156,18 @@ export default function ReportsPage() {
           <p>
             Os relatorios sao gerados automaticamente toda segunda-feira as 08:30.
             <br />
-            Voce tambem pode gerar manualmente usando o comando:
+            Voce pode gerar um relatorio manualmente clicando no botao abaixo.
           </p>
-          <code>npx tsx src/scripts/generate-reports.ts all</code>
+          <div className="empty-state-actions">
+            <GenerateReportButton
+              onSuccess={handleGenerateSuccess}
+              onError={handleGenerateError}
+            />
+            <div className="empty-state-hint">
+              <span>Ou use o comando: </span>
+              <code>npx tsx src/scripts/generate-reports.ts all</code>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="reports-list">
@@ -170,6 +197,8 @@ export default function ReportsPage() {
           ))}
         </div>
       )}
+
+      <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>
   )
 }
