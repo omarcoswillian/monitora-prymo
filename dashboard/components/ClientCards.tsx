@@ -35,16 +35,12 @@ interface ClientCardsProps {
   pages: PageEntry[]
   status: StatusEntry[]
   uptimeDaily: Array<{ date: string; uptime: number }>
-  selectedClientId: string | null
-  onSelectClient: (clientId: string | null) => void
 }
 
 export default function ClientCards({
   pages,
   status,
   uptimeDaily,
-  selectedClientId,
-  onSelectClient,
 }: ClientCardsProps) {
   // Group pages by client
   const clientsMap = new Map<string, ClientStats>()
@@ -112,31 +108,18 @@ export default function ClientCards({
     return null
   }
 
-  const handleClick = (clientId: string, e: React.MouseEvent) => {
-    // If clicking the detail link, don't toggle selection
-    if ((e.target as HTMLElement).closest('.client-card-detail-link')) {
-      return
-    }
-    if (selectedClientId === clientId) {
-      onSelectClient(null) // Toggle off
-    } else {
-      onSelectClient(clientId)
-    }
-  }
-
   return (
     <div className="client-cards-section">
       <h2 className="section-title">Clientes</h2>
       <div className="client-cards-grid">
         {clients.map(client => {
-          const isSelected = selectedClientId === client.id
           const hasErrors = client.activeErrors > 0
 
           return (
-            <div
+            <Link
               key={client.id}
-              className={`client-card ${isSelected ? 'client-card-selected' : ''} ${hasErrors ? 'client-card-error' : ''}`}
-              onClick={(e) => handleClick(client.id, e)}
+              href={`/clients/${encodeURIComponent(client.id)}`}
+              className={`client-card ${hasErrors ? 'client-card-error' : ''}`}
             >
               <div className="client-card-header">
                 <span className="client-card-name">{client.name}</span>
@@ -147,14 +130,7 @@ export default function ClientCards({
                       {client.activeErrors}
                     </span>
                   )}
-                  <Link
-                    href={`/clients/${encodeURIComponent(client.id)}`}
-                    className="client-card-detail-link"
-                    title="Ver detalhes"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <ChevronRight size={16} />
-                  </Link>
+                  <ChevronRight size={16} />
                 </div>
               </div>
 
@@ -203,7 +179,7 @@ export default function ClientCards({
                   </span>
                 </div>
               )}
-            </div>
+            </Link>
           )
         })}
       </div>

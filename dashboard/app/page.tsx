@@ -164,7 +164,7 @@ export default function Dashboard() {
     apiKeyConfigured: false,
   });
   const [filter, setFilter] = useState<Filter>("all");
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [tableClientFilter, setTableClientFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [runningAudit, setRunningAudit] = useState<string | null>(null);
@@ -204,12 +204,9 @@ export default function Dashboard() {
     }
   }, []);
 
-  const fetchHistory = useCallback(async (clientId?: string | null) => {
+  const fetchHistory = useCallback(async () => {
     try {
-      const url = clientId
-        ? `/api/history?client=${encodeURIComponent(clientId)}`
-        : "/api/history";
-      const res = await fetch(url);
+      const res = await fetch("/api/history");
       const json = await res.json();
       setHistory(json);
     } catch {
@@ -217,25 +214,15 @@ export default function Dashboard() {
     }
   }, []);
 
-  const fetchAudits = useCallback(async (clientId?: string | null) => {
+  const fetchAudits = useCallback(async () => {
     try {
-      // If client is selected, pass pageIds for that client
-      let url = "/api/audits";
-      if (clientId) {
-        // Get page IDs for this client to calculate client-specific averages
-        const clientPages = pages.filter(p => p.client === clientId);
-        const pageIds = clientPages.map(p => `[${p.client}] ${p.name}`).join(",");
-        if (pageIds) {
-          url = `/api/audits?pageIds=${encodeURIComponent(pageIds)}`;
-        }
-      }
-      const res = await fetch(url);
+      const res = await fetch("/api/audits");
       const json = await res.json();
       setAudits(json);
     } catch {
       console.error("Failed to fetch audits");
     }
-  }, [pages]);
+  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -243,41 +230,24 @@ export default function Dashboard() {
         fetchStatus(),
         fetchPages(),
         fetchClients(),
-        fetchHistory(null),
-        fetchAudits(null),
+        fetchHistory(),
+        fetchAudits(),
       ]);
       setLoading(false);
     };
     init();
 
-    // Status polling: every 5 seconds
+    // Polling intervals for global data
     const statusInterval = setInterval(fetchStatus, 5000);
+    const historyInterval = setInterval(fetchHistory, 30000);
+    const auditsInterval = setInterval(fetchAudits, 60000);
 
     return () => {
       clearInterval(statusInterval);
-    };
-  }, [fetchStatus, fetchPages, fetchClients, fetchHistory, fetchAudits]);
-
-  // Refetch history and audits when client selection changes
-  useEffect(() => {
-    if (!loading) {
-      fetchHistory(selectedClientId);
-      fetchAudits(selectedClientId);
-    }
-  }, [selectedClientId, loading, fetchHistory, fetchAudits]);
-
-  // Set up polling for history and audits (respecting client filter)
-  useEffect(() => {
-    if (loading) return;
-
-    const historyInterval = setInterval(() => fetchHistory(selectedClientId), 30000);
-    const auditsInterval = setInterval(() => fetchAudits(selectedClientId), 60000);
-
-    return () => {
       clearInterval(historyInterval);
       clearInterval(auditsInterval);
     };
-  }, [loading, selectedClientId, fetchHistory, fetchAudits]);
+  }, [fetchStatus, fetchPages, fetchClients, fetchHistory, fetchAudits]);
 
   // Unique clients from pages for dropdown
   const uniqueClients = useMemo(() => {
@@ -302,11 +272,11 @@ export default function Dashboard() {
     });
   }, [pages, status, audits.latest]);
 
-  // Filter by client
+  // Filter by client (table only - does not affect charts/metrics)
   const clientFiltered = useMemo(() => {
-    if (!selectedClientId) return mergedData;
-    return mergedData.filter((d) => d.client === selectedClientId);
-  }, [mergedData, selectedClientId]);
+    if (!tableClientFilter) return mergedData;
+    return mergedData.filter((d) => d.client === tableClientFilter);
+  }, [mergedData, tableClientFilter]);
 
   const counts = useMemo(() => {
     const enabledStatus = clientFiltered
@@ -401,15 +371,11 @@ export default function Dashboard() {
     fetchClients();
   };
 
-  const handleClientSelect = (clientId: string | null) => {
-    setSelectedClientId(clientId);
-  };
-
   const handleClientDropdownChange = (
     e: React.ChangeEvent<HTMLSelectElement>,
   ) => {
     const value = e.target.value;
-    setSelectedClientId(value === "" ? null : value);
+    setTableClientFilter(value === "" ? null : value);
   };
 
   if (loading) {
@@ -429,20 +395,7 @@ export default function Dashboard() {
           <div>
             <h1>Prymo Monitora</h1>
             <p className="header-subtitle">
-              {selectedClientId ? (
-                <>
-                  <span className="view-label">Cliente:</span> {selectedClientId}
-                  <button
-                    className="clear-filter-btn"
-                    onClick={() => setSelectedClientId(null)}
-                    title="Limpar filtro"
-                  >
-                    (ver todos)
-                  </button>
-                </>
-              ) : (
-                <span className="view-label">Visao Geral (Todos os clientes)</span>
-              )}
+              <span className="view-label">Visao Geral (Todos os clientes)</span>
             </p>
           </div>
           <div className="header-actions">
@@ -467,8 +420,6 @@ export default function Dashboard() {
         pages={pages}
         status={status}
         uptimeDaily={history.uptimeDaily}
-        selectedClientId={selectedClientId}
-        onSelectClient={handleClientSelect}
       />
 
       {/* Summary Cards */}
@@ -540,7 +491,7 @@ export default function Dashboard() {
       <div className="filters-row">
         <select
           className="filter-select"
-          value={selectedClientId || ""}
+          value={tableClientFilter || ""}
           onChange={handleClientDropdownChange}
         >
           <option value="">Todos Clientes</option>

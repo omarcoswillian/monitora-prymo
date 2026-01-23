@@ -129,17 +129,22 @@ export default function ClientDetailPage() {
 
   const fetchHistory = useCallback(async () => {
     try {
-      const res = await fetch('/api/history')
+      const res = await fetch(`/api/history?client=${encodeURIComponent(clientId)}`)
       const json = await res.json()
       setHistory(json)
     } catch {
       console.error('Failed to fetch history')
     }
-  }, [])
+  }, [clientId])
 
-  const fetchAudits = useCallback(async () => {
+  const fetchAudits = useCallback(async (clientPages: PageEntry[]) => {
     try {
-      const res = await fetch('/api/audits')
+      let url = '/api/audits'
+      if (clientPages.length > 0) {
+        const pageIds = clientPages.map(p => `[${p.client}] ${p.name}`).join(',')
+        url = `/api/audits?pageIds=${encodeURIComponent(pageIds)}`
+      }
+      const res = await fetch(url)
       const json = await res.json()
       setAudits(json)
     } catch {
@@ -148,27 +153,36 @@ export default function ClientDetailPage() {
   }, [])
 
   useEffect(() => {
+    let auditsInterval: NodeJS.Timeout | null = null
+
     const init = async () => {
-      await Promise.all([
+      // Fetch pages first to get client-specific page list
+      const [, pagesRes] = await Promise.all([
         fetchStatus(),
-        fetchPages(),
+        fetch('/api/pages').then(r => r.json()),
         fetchHistory(),
-        fetchAudits(),
       ])
+      setPages(pagesRes)
+
+      // Filter pages for this client and fetch audits
+      const filteredPages = pagesRes.filter((p: PageEntry) => p.client === clientId)
+      await fetchAudits(filteredPages)
       setLoading(false)
+
+      // Set up audits polling with client-specific pages
+      auditsInterval = setInterval(() => fetchAudits(filteredPages), 60000)
     }
     init()
 
     const statusInterval = setInterval(fetchStatus, 5000)
     const historyInterval = setInterval(fetchHistory, 30000)
-    const auditsInterval = setInterval(fetchAudits, 60000)
 
     return () => {
       clearInterval(statusInterval)
       clearInterval(historyInterval)
-      clearInterval(auditsInterval)
+      if (auditsInterval) clearInterval(auditsInterval)
     }
-  }, [fetchStatus, fetchPages, fetchHistory, fetchAudits])
+  }, [clientId, fetchStatus, fetchHistory, fetchAudits])
 
   // Filter pages by client
   const clientPages = useMemo(() => {
@@ -323,7 +337,7 @@ export default function ClientDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pageId, url: page.url }),
       })
-      await fetchAudits()
+      await fetchAudits(clientPages)
     } catch {
       console.error('Failed to run audit')
     } finally {
