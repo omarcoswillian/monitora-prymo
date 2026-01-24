@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { signOut, useSession } from 'next-auth/react'
 import {
   LayoutDashboard,
   Users,
@@ -35,6 +36,11 @@ const secondaryNavItems: NavItem[] = [
 export default function Sidebar() {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { data: session } = useSession()
+
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/login' })
+  }
 
   const isActive = (href: string) => {
     if (href === '/') {
@@ -107,11 +113,15 @@ export default function Sidebar() {
             <Users size={16} />
           </div>
           <div className="sidebar-user-info">
-            <span className="sidebar-user-name">Admin</span>
-            <span className="sidebar-user-email">admin@prymo.com</span>
+            <span className="sidebar-user-name">{session?.user?.name ?? 'Admin'}</span>
+            <span className="sidebar-user-email">{session?.user?.email ?? ''}</span>
           </div>
         </div>
-        <button className="sidebar-logout" title="Sair">
+        <button
+          className="sidebar-logout"
+          title="Sair"
+          onClick={handleLogout}
+        >
           <LogOut size={16} />
         </button>
       </div>
