@@ -4,6 +4,10 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, Clock, ExternalLink, XCircle, AlertOctagon } from 'lucide-react'
 import Breadcrumbs from '@/components/Breadcrumbs'
+import FiltersBar from '@/components/FiltersBar'
+import FilterChip from '@/components/FilterChip'
+import FilterSelect from '@/components/FilterSelect'
+import { AppShell } from '@/components/layout'
 
 type ErrorType = 'HTTP_404' | 'HTTP_500' | 'TIMEOUT' | 'SOFT_404' | 'CONNECTION_ERROR' | 'UNKNOWN'
 type StatusLabel = 'Online' | 'Offline' | 'Lento' | 'Soft 404'
@@ -183,27 +187,27 @@ export default function IncidentsPage() {
 
   if (loading) {
     return (
-      <div className="container">
-        <div className="loading">Carregando...</div>
-      </div>
+      <AppShell>
+        <div className="container">
+          <div className="loading">Carregando...</div>
+        </div>
+      </AppShell>
     )
   }
 
   return (
-    <div className="container">
-      <Breadcrumbs items={[{ label: 'Incidentes' }]} />
+    <AppShell>
+      <div className="container">
+        <Breadcrumbs items={[{ label: 'Incidentes' }]} />
 
-      <header className="header">
-        <div className="header-row">
-          <div>
-            <h1>Incidentes</h1>
-            <p>Historico de erros e alertas</p>
+        <header className="header">
+          <div className="header-row">
+            <div>
+              <h1>Incidentes</h1>
+              <p>Historico de erros e alertas</p>
+            </div>
           </div>
-          <Link href="/" className="btn">
-            Voltar
-          </Link>
-        </div>
-      </header>
+        </header>
 
       {/* Stats Cards */}
       <div className="cards">
@@ -238,37 +242,32 @@ export default function IncidentsPage() {
       </div>
 
       {/* Filters */}
-      <div className="filters-row">
-        <select
-          className="filter-select"
+      <FiltersBar>
+        <FilterSelect
           value={selectedClient}
-          onChange={(e) => setSelectedClient(e.target.value)}
-        >
-          <option value="">Todos os clientes</option>
-          {uniqueClients.map(client => (
-            <option key={client} value={client}>
-              {client}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setSelectedClient(value)}
+          options={uniqueClients.map(client => ({
+            value: client,
+            label: client,
+          }))}
+          placeholder="Todos os clientes"
+        />
 
-        <div className="filters">
-          {([
-            { key: 'all', label: 'Todos' },
-            { key: 'error', label: 'Erro' },
-            { key: 'slow', label: 'Lento' },
-            { key: 'soft404', label: 'Soft 404' },
-          ] as const).map(f => (
-            <button
-              key={f.key}
-              className={`filter-btn ${severityFilter === f.key ? 'active' : ''}`}
-              onClick={() => setSeverityFilter(f.key)}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
+        {([
+          { key: 'all', label: 'Todos' },
+          { key: 'error', label: 'Erro' },
+          { key: 'slow', label: 'Lento' },
+          { key: 'soft404', label: 'Soft 404' },
+        ] as const).map(f => (
+          <FilterChip
+            key={f.key}
+            active={severityFilter === f.key}
+            onClick={() => setSeverityFilter(f.key)}
+          >
+            {f.label}
+          </FilterChip>
+        ))}
+      </FiltersBar>
 
       {/* Incidents List */}
       {filteredIncidents.length === 0 ? (
@@ -365,6 +364,7 @@ export default function IncidentsPage() {
           </table>
         </div>
       )}
-    </div>
+      </div>
+    </AppShell>
   )
 }

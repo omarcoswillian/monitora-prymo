@@ -22,3 +22,6 @@ export default function RootLayout({
     </html>
   )
 }
+
+// Note: The AppShell component with Sidebar is imported in the pages that need it
+// Login page does not use AppShell to allow full-page layout

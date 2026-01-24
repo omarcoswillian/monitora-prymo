@@ -8,6 +8,7 @@ import Breadcrumbs from '@/components/Breadcrumbs'
 import PageStatusCard from '@/components/PageStatusCard'
 import RedirectChain from '@/components/RedirectChain'
 import { ResponseTimeChart, UptimeChart } from '@/components/Charts'
+import { AppShell } from '@/components/layout'
 import {
   LineChart,
   Line,
@@ -298,66 +299,68 @@ export default function PageDetailPage() {
 
   if (loading) {
     return (
-      <div className="container">
-        <div className="loading">Carregando...</div>
-      </div>
+      <AppShell>
+        <div className="container">
+          <div className="loading">Carregando...</div>
+        </div>
+      </AppShell>
     )
   }
 
   if (!page) {
     return (
-      <div className="container">
-        <Breadcrumbs items={[{ label: 'Pagina nao encontrada' }]} />
-        <div className="empty">
-          Pagina nao encontrada.
+      <AppShell>
+        <div className="container">
+          <Breadcrumbs items={[{ label: 'Pagina nao encontrada' }]} />
+          <div className="empty">
+            Pagina nao encontrada.
+          </div>
+          <Link href="/" className="btn" style={{ marginTop: '1rem', display: 'inline-block' }}>
+            Voltar para Home
+          </Link>
         </div>
-        <Link href="/" className="btn" style={{ marginTop: '1rem', display: 'inline-block' }}>
-          Voltar para Home
-        </Link>
-      </div>
+      </AppShell>
     )
   }
 
   const auditScores = pageAudit?.audit?.scores
 
   return (
-    <div className="container">
-      <Breadcrumbs
-        items={[
-          { label: page.client, href: `/clients/${encodeURIComponent(page.client)}` },
-          { label: page.name },
-        ]}
-      />
+    <AppShell>
+      <div className="container">
+        <Breadcrumbs
+          items={[
+            { label: page.client, href: `/clients/${encodeURIComponent(page.client)}` },
+            { label: page.name },
+          ]}
+        />
 
-      <header className="header">
-        <div className="header-row">
-          <div>
-            <h1>{page.name}</h1>
-            <a href={page.url} target="_blank" rel="noopener noreferrer" className="page-url-header">
-              {page.url}
-              <ExternalLink size={14} />
-            </a>
+        <header className="header">
+          <div className="header-row">
+            <div>
+              <h1>{page.name}</h1>
+              <a href={page.url} target="_blank" rel="noopener noreferrer" className="page-url-header">
+                {page.url}
+                <ExternalLink size={14} />
+              </a>
+            </div>
+            <div className="header-actions">
+              <button
+                onClick={handleRunAudit}
+                disabled={runningAudit || !page.enabled}
+                className={`btn ${runningAudit ? 'btn-disabled' : ''}`}
+                title={audits.apiKeyConfigured ? 'Rodar auditoria' : 'API key nao configurada'}
+              >
+                <BarChart3 size={16} />
+                {runningAudit ? 'Executando...' : 'Rodar Audit'}
+              </button>
+              <button onClick={toggleEnabled} className="btn">
+                {page.enabled ? <Pause size={16} /> : <Play size={16} />}
+                {page.enabled ? 'Pausar' : 'Ativar'}
+              </button>
+            </div>
           </div>
-          <div className="header-actions">
-            <button
-              onClick={handleRunAudit}
-              disabled={runningAudit || !page.enabled}
-              className={`btn ${runningAudit ? 'btn-disabled' : ''}`}
-              title={audits.apiKeyConfigured ? 'Rodar auditoria' : 'API key nao configurada'}
-            >
-              <BarChart3 size={16} />
-              {runningAudit ? 'Executando...' : 'Rodar Audit'}
-            </button>
-            <button onClick={toggleEnabled} className="btn">
-              {page.enabled ? <Pause size={16} /> : <Play size={16} />}
-              {page.enabled ? 'Pausar' : 'Ativar'}
-            </button>
-            <Link href="/" className="btn">
-              Voltar
-            </Link>
-          </div>
-        </div>
-      </header>
+        </header>
 
       {/* Status Card */}
       <PageStatusCard status={pageStatus} enabled={page.enabled} />
@@ -553,6 +556,7 @@ export default function PageDetailPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </AppShell>
   )
 }
