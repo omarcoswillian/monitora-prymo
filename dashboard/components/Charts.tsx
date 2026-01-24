@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import {
   LineChart,
   Line,
@@ -30,7 +31,65 @@ interface UptimeChartProps {
   data: DailyUptime[]
 }
 
+interface ChartColors {
+  grid: string
+  axis: string
+  tooltipBg: string
+  tooltipBorder: string
+  tooltipText: string
+  linePrimary: string
+  barSuccess: string
+}
+
+function useChartColors(): ChartColors {
+  const [colors, setColors] = useState<ChartColors>({
+    grid: '#333',
+    axis: '#888',
+    tooltipBg: '#1a1a1a',
+    tooltipBorder: '#333',
+    tooltipText: '#888',
+    linePrimary: '#3b82f6',
+    barSuccess: '#22c55e',
+  })
+
+  useEffect(() => {
+    const updateColors = () => {
+      const root = document.documentElement
+      const styles = getComputedStyle(root)
+
+      setColors({
+        grid: styles.getPropertyValue('--border-subtle').trim() || '#333',
+        axis: styles.getPropertyValue('--text-tertiary').trim() || '#888',
+        tooltipBg: styles.getPropertyValue('--bg-elevated').trim() || '#1a1a1a',
+        tooltipBorder: styles.getPropertyValue('--border-default').trim() || '#333',
+        tooltipText: styles.getPropertyValue('--text-secondary').trim() || '#888',
+        linePrimary: styles.getPropertyValue('--accent-primary').trim() || '#3b82f6',
+        barSuccess: styles.getPropertyValue('--color-success').trim() || '#22c55e',
+      })
+    }
+
+    updateColors()
+
+    // Listen for theme changes
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'data-theme') {
+          updateColors()
+        }
+      })
+    })
+
+    observer.observe(document.documentElement, { attributes: true })
+
+    return () => observer.disconnect()
+  }, [])
+
+  return colors
+}
+
 export function ResponseTimeChart({ data }: ResponseTimeChartProps) {
+  const colors = useChartColors()
+
   const formattedData = data.map(d => ({
     ...d,
     label: d.hour.split(' ')[1] || d.hour,
@@ -44,32 +103,32 @@ export function ResponseTimeChart({ data }: ResponseTimeChartProps) {
       ) : (
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={formattedData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+            <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
             <XAxis
               dataKey="label"
-              stroke="#888"
+              stroke={colors.axis}
               fontSize={12}
               tickLine={false}
             />
             <YAxis
-              stroke="#888"
+              stroke={colors.axis}
               fontSize={12}
               tickLine={false}
               tickFormatter={v => `${v}ms`}
             />
             <Tooltip
               contentStyle={{
-                background: '#1a1a1a',
-                border: '1px solid #333',
+                background: colors.tooltipBg,
+                border: `1px solid ${colors.tooltipBorder}`,
                 borderRadius: '6px',
               }}
-              labelStyle={{ color: '#888' }}
+              labelStyle={{ color: colors.tooltipText }}
               formatter={(value: number) => [`${value}ms`, 'Avg']}
             />
             <Line
               type="monotone"
               dataKey="avg"
-              stroke="#3b82f6"
+              stroke={colors.linePrimary}
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4 }}
@@ -82,6 +141,8 @@ export function ResponseTimeChart({ data }: ResponseTimeChartProps) {
 }
 
 export function UptimeChart({ data }: UptimeChartProps) {
+  const colors = useChartColors()
+
   const formattedData = data.map(d => ({
     ...d,
     label: d.date.slice(5),
@@ -95,15 +156,15 @@ export function UptimeChart({ data }: UptimeChartProps) {
       ) : (
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={formattedData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+            <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
             <XAxis
               dataKey="label"
-              stroke="#888"
+              stroke={colors.axis}
               fontSize={12}
               tickLine={false}
             />
             <YAxis
-              stroke="#888"
+              stroke={colors.axis}
               fontSize={12}
               tickLine={false}
               tickFormatter={v => `${v}%`}
@@ -111,16 +172,16 @@ export function UptimeChart({ data }: UptimeChartProps) {
             />
             <Tooltip
               contentStyle={{
-                background: '#1a1a1a',
-                border: '1px solid #333',
+                background: colors.tooltipBg,
+                border: `1px solid ${colors.tooltipBorder}`,
                 borderRadius: '6px',
               }}
-              labelStyle={{ color: '#888' }}
+              labelStyle={{ color: colors.tooltipText }}
               formatter={(value: number) => [`${value}%`, 'Uptime']}
             />
             <Bar
               dataKey="uptime"
-              fill="#22c55e"
+              fill={colors.barSuccess}
               radius={[4, 4, 0, 0]}
             />
           </BarChart>

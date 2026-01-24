@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Search, Plus, AlertTriangle, RefreshCw } from 'lucide-react'
+import ThemeToggle from '@/components/ThemeToggle'
 
 interface TopbarProps {
   onAddClick?: () => void
@@ -65,6 +66,8 @@ export default function Topbar({
           <RefreshCw size={14} />
           <span>Atualizado: {lastUpdate}</span>
         </div>
+
+        <ThemeToggle />
 
         {showIncidentsButton && (
           <Link href="/incidents" className="topbar-btn topbar-btn-secondary">
