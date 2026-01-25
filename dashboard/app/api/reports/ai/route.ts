@@ -3,7 +3,7 @@ import {
   getAllAIReports,
   getAIReportById,
   deleteAIReport,
-} from '@/lib/ai-reports-store'
+} from '@/lib/supabase-ai-reports-store'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     if (id) {
       // Buscar relatorio especifico
-      const report = getAIReportById(id)
+      const report = await getAIReportById(id)
       if (!report) {
         return NextResponse.json(
           { error: 'Relatorio nao encontrado' },
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Listar todos os relatorios
-    const reports = getAllAIReports()
+    const reports = await getAllAIReports()
     return NextResponse.json({ reports })
   } catch (error) {
     console.error('Error getting AI reports:', error)
@@ -48,7 +48,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    const deleted = deleteAIReport(id)
+    const deleted = await deleteAIReport(id)
     if (!deleted) {
       return NextResponse.json(
         { error: 'Relatorio nao encontrado' },

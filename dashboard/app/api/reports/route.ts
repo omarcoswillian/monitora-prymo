@@ -1,68 +1,61 @@
 import { NextResponse } from 'next/server'
-import { readFileSync, existsSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { getAllAIReports, getAIReportById } from '@/lib/supabase-ai-reports-store'
 
 export const dynamic = 'force-dynamic'
 
-const REPORTS_DIR = join(process.cwd(), '..', 'data', 'reports')
-
-interface Report {
+interface ReportSummary {
+  id: string
   week: string
   client: string
-  path: string
-  content?: string
+  type: string
+  createdAt: string
+}
+
+function getWeekFromDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  const year = date.getFullYear()
+  const firstDayOfYear = new Date(year, 0, 1)
+  const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000
+  const weekNum = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
+  return `${year}-W${weekNum.toString().padStart(2, '0')}`
 }
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const week = searchParams.get('week')
-  const client = searchParams.get('client')
+  const id = searchParams.get('id')
 
   try {
-    // If specific report requested, return its content
-    if (week && client) {
-      const safeClient = client.replace(/[^a-zA-Z0-9-_]/g, '_')
-      const reportPath = join(REPORTS_DIR, week, `${safeClient}.md`)
+    // If specific report requested by ID, return its content
+    if (id) {
+      const report = await getAIReportById(id)
 
-      if (!existsSync(reportPath)) {
+      if (!report) {
         return NextResponse.json({ error: 'Report not found' }, { status: 404 })
       }
 
-      const content = readFileSync(reportPath, 'utf-8')
       return NextResponse.json({
-        week,
-        client,
-        path: reportPath,
-        content,
+        id: report.id,
+        week: getWeekFromDate(report.createdAt),
+        client: report.clientName || 'Global',
+        type: report.type,
+        content: report.content,
+        period: report.period,
+        createdAt: report.createdAt,
       })
     }
 
-    // List all reports
-    const reports: Report[] = []
+    // List all reports from Supabase
+    const aiReports = await getAllAIReports()
 
-    if (!existsSync(REPORTS_DIR)) {
-      return NextResponse.json({ reports })
-    }
-
-    const weeks = readdirSync(REPORTS_DIR)
-      .filter(d => d.match(/^\d{4}-W\d{2}$/))
-      .sort((a, b) => b.localeCompare(a))
-
-    for (const weekDir of weeks) {
-      const weekPath = join(REPORTS_DIR, weekDir)
-      try {
-        const files = readdirSync(weekPath).filter(f => f.endsWith('.md'))
-        for (const file of files) {
-          reports.push({
-            week: weekDir,
-            client: file.replace('.md', '').replace(/_/g, ' '),
-            path: join(weekPath, file),
-          })
-        }
-      } catch {
-        // Skip invalid directories
-      }
-    }
+    const reports: ReportSummary[] = aiReports
+      .filter(r => r.status === 'completed')
+      .map(r => ({
+        id: r.id,
+        week: getWeekFromDate(r.createdAt),
+        client: r.clientName || 'Global',
+        type: r.type,
+        createdAt: r.createdAt,
+      }))
 
     return NextResponse.json({ reports })
   } catch (error) {

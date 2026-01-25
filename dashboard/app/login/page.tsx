@@ -15,6 +15,20 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || '/'
+  const urlError = searchParams.get('error')
+
+  // Show URL error from NextAuth redirect
+  useState(() => {
+    if (urlError) {
+      if (urlError === 'CredentialsSignin') {
+        setError('Email ou senha incorretos')
+      } else if (urlError === 'Configuration') {
+        setError('Erro de configuracao do servidor. Contate o administrador.')
+      } else {
+        setError('Erro ao fazer login. Tente novamente.')
+      }
+    }
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,7 +43,12 @@ function LoginForm() {
       })
 
       if (result?.error) {
-        setError('Email ou senha incorretos')
+        // Check for specific error types
+        if (result.error.includes('configuration') || result.error.includes('Configuration')) {
+          setError('Erro de configuracao do servidor. Contate o administrador.')
+        } else {
+          setError('Email ou senha incorretos')
+        }
       } else {
         router.push(callbackUrl)
         router.refresh()

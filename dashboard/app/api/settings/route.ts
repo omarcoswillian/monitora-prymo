@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { getSettings, updateSettings, resetSettings } from '@/lib/settings-store'
+import { getSettings, updateSettings, resetSettings } from '@/lib/supabase-settings-store'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const settings = getSettings()
+    const settings = await getSettings()
     return NextResponse.json(settings)
   } catch (error) {
     console.error('Error getting settings:', error)
@@ -19,7 +19,7 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
-    const updated = updateSettings(body)
+    const updated = await updateSettings(body)
     return NextResponse.json(updated)
   } catch (error) {
     console.error('Error updating settings:', error)
@@ -32,7 +32,7 @@ export async function PUT(request: Request) {
 
 export async function DELETE() {
   try {
-    const reset = resetSettings()
+    const reset = await resetSettings()
     return NextResponse.json(reset)
   } catch (error) {
     console.error('Error resetting settings:', error)

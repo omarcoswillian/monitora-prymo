@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import type { ClientReportData, GlobalReportData } from './report-data-aggregator'
+import type { ClientReportData, GlobalReportData } from './supabase-report-data-aggregator'
 
 // ===== TIPOS =====
 

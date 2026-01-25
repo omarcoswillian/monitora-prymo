@@ -3,7 +3,7 @@ import {
   aggregateClientData,
   aggregateGlobalData,
   getAvailableClients,
-} from '@/lib/report-data-aggregator'
+} from '@/lib/supabase-report-data-aggregator'
 import {
   generateAIReport,
   generateFallbackReport,
@@ -11,8 +11,8 @@ import {
 import {
   createAIReport,
   updateAIReport,
-} from '@/lib/ai-reports-store'
-import { getSettings } from '@/lib/settings-store'
+} from '@/lib/supabase-ai-reports-store'
+import { getSettings } from '@/lib/supabase-settings-store'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
     // Validar se cliente existe
     if (body.scope === 'client') {
-      const clients = getAvailableClients()
+      const clients = await getAvailableClients()
       if (!clients.includes(body.clientName!)) {
         return NextResponse.json(
           { error: `Cliente "${body.clientName}" nao encontrado.` },
@@ -53,17 +53,17 @@ export async function POST(request: Request) {
     }
 
     // Buscar configuracoes
-    const settings = getSettings()
+    const settings = await getSettings()
     const tone = settings.reports.tone
 
     // Agregar dados
     const data =
       body.scope === 'global'
-        ? aggregateGlobalData(7)
-        : aggregateClientData(body.clientName!, 7)
+        ? await aggregateGlobalData(7)
+        : await aggregateClientData(body.clientName!, 7)
 
     // Criar registro do relatorio (status: generating)
-    const report = createAIReport({
+    const report = await createAIReport({
       type: body.scope,
       clientName: body.scope === 'client' ? body.clientName! : null,
       period: data.period,
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       }
 
       // Atualizar relatorio com conteudo
-      const updated = updateAIReport(report.id, {
+      const updated = await updateAIReport(report.id, {
         content,
         status: 'completed',
         completedAt: new Date().toISOString(),
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
 
       const content = generateFallbackReport(data)
 
-      const updated = updateAIReport(report.id, {
+      const updated = await updateAIReport(report.id, {
         content,
         status: 'completed',
         completedAt: new Date().toISOString(),
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
 // Endpoint para listar clientes disponiveis
 export async function GET() {
   try {
-    const clients = getAvailableClients()
+    const clients = await getAvailableClients()
     const hasApiKey = !!process.env.ANTHROPIC_API_KEY
 
     return NextResponse.json({

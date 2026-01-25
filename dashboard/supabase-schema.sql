@@ -104,11 +104,32 @@ CREATE TABLE IF NOT EXISTS ai_reports (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
   report_type TEXT NOT NULL,
-  content TEXT NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
   period_start TIMESTAMPTZ NOT NULL,
   period_end TIMESTAMPTZ NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  error TEXT DEFAULT NULL,
+  completed_at TIMESTAMPTZ DEFAULT NULL,
+  data JSONB DEFAULT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Add columns if they don't exist (for existing databases)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'ai_reports' AND column_name = 'status') THEN
+    ALTER TABLE ai_reports ADD COLUMN status TEXT NOT NULL DEFAULT 'pending';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'ai_reports' AND column_name = 'error') THEN
+    ALTER TABLE ai_reports ADD COLUMN error TEXT DEFAULT NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'ai_reports' AND column_name = 'completed_at') THEN
+    ALTER TABLE ai_reports ADD COLUMN completed_at TIMESTAMPTZ DEFAULT NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'ai_reports' AND column_name = 'data') THEN
+    ALTER TABLE ai_reports ADD COLUMN data JSONB DEFAULT NULL;
+  END IF;
+END $$;
 
 -- ============================================
 -- Funções de atualização automática de updated_at
@@ -121,15 +142,18 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Triggers para updated_at
+-- Triggers para updated_at (idempotent - safe to run multiple times)
+DROP TRIGGER IF EXISTS update_clients_updated_at ON clients;
 CREATE TRIGGER update_clients_updated_at
   BEFORE UPDATE ON clients
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS update_pages_updated_at ON pages;
 CREATE TRIGGER update_pages_updated_at
   BEFORE UPDATE ON pages
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS update_settings_updated_at ON settings;
 CREATE TRIGGER update_settings_updated_at
   BEFORE UPDATE ON settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();

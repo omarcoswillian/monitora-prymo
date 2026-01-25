@@ -1,14 +1,34 @@
 import NextAuth from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 
-// NEXTAUTH_SECRET is required in production
+// Validate required environment variables at startup
 const secret = process.env.NEXTAUTH_SECRET
-if (!secret && process.env.NODE_ENV === 'production') {
-  console.error('FATAL: NEXTAUTH_SECRET is required in production')
+const adminEmail = process.env.ADMIN_EMAIL
+const adminPassword = process.env.ADMIN_PASSWORD
+
+// Log missing environment variables (helps debugging in Vercel logs)
+if (typeof window === 'undefined') {
+  const missing: string[] = []
+  if (!secret) missing.push('NEXTAUTH_SECRET')
+  if (!adminEmail) missing.push('ADMIN_EMAIL')
+  if (!adminPassword) missing.push('ADMIN_PASSWORD')
+
+  if (missing.length > 0) {
+    console.error(`[NextAuth] Missing required environment variables: ${missing.join(', ')}`)
+    console.error('[NextAuth] Please configure these in your Vercel project settings')
+  }
+}
+
+// Use a fallback secret for development only
+const effectiveSecret = secret || (process.env.NODE_ENV === 'development' ? 'dev-secret-change-in-production' : undefined)
+
+if (!effectiveSecret) {
+  console.error('FATAL: NEXTAUTH_SECRET is required in production. Authentication will fail.')
 }
 
 const handler = NextAuth({
-  secret,
+  secret: effectiveSecret,
+  debug: process.env.NODE_ENV === 'development',
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -17,31 +37,35 @@ const handler = NextAuth({
         password: { label: 'Senha', type: 'password' },
       },
       async authorize(credentials) {
-        const adminEmail = process.env.ADMIN_EMAIL
-        const adminPassword = process.env.ADMIN_PASSWORD
+        // Re-read env vars in case they were not available at module load time
+        const email = process.env.ADMIN_EMAIL
+        const password = process.env.ADMIN_PASSWORD
 
-        if (!adminEmail || !adminPassword) {
-          console.error('ADMIN_EMAIL or ADMIN_PASSWORD not configured')
-          return null
+        if (!email || !password) {
+          console.error('[NextAuth] ADMIN_EMAIL or ADMIN_PASSWORD not configured')
+          console.error('[NextAuth] Please set these environment variables in Vercel')
+          throw new Error('Server configuration error. Please contact the administrator.')
         }
 
         if (
-          credentials?.email === adminEmail &&
-          credentials?.password === adminPassword
+          credentials?.email === email &&
+          credentials?.password === password
         ) {
           return {
             id: '1',
-            email: adminEmail,
+            email: email,
             name: 'Admin',
           }
         }
 
+        // Invalid credentials
         return null
       },
     }),
   ],
   pages: {
     signIn: '/login',
+    error: '/login', // Redirect to login on error
   },
   session: {
     strategy: 'jwt',

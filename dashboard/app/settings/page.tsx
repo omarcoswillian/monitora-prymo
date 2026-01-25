@@ -26,7 +26,7 @@ import type {
   AuditSettings,
   ReportSettings,
   AccountSettings,
-} from '@/lib/settings-store'
+} from '@/lib/supabase-settings-store'
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
