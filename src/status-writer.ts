@@ -1,109 +1,50 @@
-import { writeFileSync, readFileSync, renameSync, mkdirSync, existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import type { CheckResult, HistoryEntry, StatusLabel, ErrorType } from './types.js';
+import { supabase } from './lib/supabase.js';
+import type { CheckResult } from './types.js';
 
-export interface StatusEntry {
-  name: string;
-  url: string;
-  status: number | null;
-  responseTime: number;
-  success: boolean;
-  error?: string;
-  timestamp: string;
-  statusLabel: StatusLabel;
-  errorType?: ErrorType;
-  httpStatus: number | null;
-  lastCheckedAt: string;
-}
-
-const STATUS_FILE = join(process.cwd(), 'data', 'status.json');
-const HISTORY_FILE = join(process.cwd(), 'data', 'history.json');
 const HISTORY_RETENTION_DAYS = 7;
 
-function ensureDataDir(): void {
-  const dir = dirname(STATUS_FILE);
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
+/**
+ * Write status for all checked pages.
+ * In Supabase mode this is a no-op because each result is already
+ * inserted individually via appendHistory. The "current status" is
+ * derived by querying the latest check_history entry per page.
+ */
+export function writeStatus(): void {
+  // No-op: status is derived from check_history in Supabase
+}
+
+/**
+ * Append a check result to the check_history table in Supabase
+ */
+export async function appendHistory(pageId: string, result: CheckResult): Promise<void> {
+  const { error } = await supabase.from('check_history').insert({
+    page_id: pageId,
+    status: result.status ?? 0,
+    response_time: result.responseTime,
+    error: result.error || null,
+    checked_at: result.timestamp.toISOString(),
+  });
+
+  if (error) {
+    console.error(`[Status Writer] Error inserting check_history for page ${pageId}:`, error.message);
   }
 }
 
-function resultToEntry(result: CheckResult): StatusEntry {
-  return {
-    name: result.name,
-    url: result.url,
-    status: result.status,
-    responseTime: result.responseTime,
-    success: result.success,
-    error: result.error,
-    timestamp: result.timestamp.toISOString(),
-    statusLabel: result.statusLabel,
-    errorType: result.errorType,
-    httpStatus: result.httpStatus,
-    lastCheckedAt: result.timestamp.toISOString(),
-  };
-}
-
-export function writeStatus(results: Map<string, CheckResult>): void {
-  ensureDataDir();
-
-  const entries: StatusEntry[] = Array.from(results.values()).map(resultToEntry);
-  const json = JSON.stringify(entries, null, 2);
-
-  const tmpFile = STATUS_FILE + '.tmp';
-  writeFileSync(tmpFile, json, 'utf-8');
-  renameSync(tmpFile, STATUS_FILE);
-}
-
-function readHistory(): HistoryEntry[] {
-  if (!existsSync(HISTORY_FILE)) {
-    return [];
-  }
-  try {
-    const content = readFileSync(HISTORY_FILE, 'utf-8');
-    return JSON.parse(content);
-  } catch {
-    return [];
-  }
-}
-
-function writeHistory(entries: HistoryEntry[]): void {
-  ensureDataDir();
-  const json = JSON.stringify(entries, null, 2);
-  const tmpFile = HISTORY_FILE + '.tmp';
-  writeFileSync(tmpFile, json, 'utf-8');
-  renameSync(tmpFile, HISTORY_FILE);
-}
-
-export function appendHistory(result: CheckResult): void {
-  const history = readHistory();
-
-  const entry: HistoryEntry = {
-    pageId: result.name,
-    url: result.url,
-    status: result.status,
-    responseTime: result.responseTime,
-    success: result.success,
-    timestamp: result.timestamp.toISOString(),
-    statusLabel: result.statusLabel,
-    errorType: result.errorType,
-    httpStatus: result.httpStatus,
-  };
-
-  history.push(entry);
-  writeHistory(history);
-}
-
-export function cleanupOldHistory(): void {
-  const history = readHistory();
+/**
+ * Delete check_history entries older than HISTORY_RETENTION_DAYS
+ */
+export async function cleanupOldHistory(): Promise<void> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - HISTORY_RETENTION_DAYS);
 
-  const filtered = history.filter(entry => {
-    const entryDate = new Date(entry.timestamp);
-    return entryDate >= cutoffDate;
-  });
+  const { error, count } = await supabase
+    .from('check_history')
+    .delete()
+    .lt('checked_at', cutoffDate.toISOString());
 
-  if (filtered.length !== history.length) {
-    writeHistory(filtered);
+  if (error) {
+    console.error('[Status Writer] Error cleaning old history:', error.message);
+  } else if (count && count > 0) {
+    console.log(`[Status Writer] Cleaned up ${count} old history entries`);
   }
 }

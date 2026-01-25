@@ -1,8 +1,7 @@
 import * as cron from 'node-cron';
 import { checkPage } from '../checker.js';
-import { writeStatus, appendHistory, cleanupOldHistory } from '../status-writer.js';
+import { appendHistory, cleanupOldHistory } from '../status-writer.js';
 import { logger } from '../logger.js';
-import type { CheckResult } from '../types.js';
 
 interface ScheduledPage {
   id: string;
@@ -25,7 +24,7 @@ const DEFAULT_CONFIG: UptimeSchedulerConfig = {
 };
 
 let scheduledTasks: cron.ScheduledTask[] = [];
-let getPagesFn: (() => ScheduledPage[]) | null = null;
+let getPagesFn: (() => Promise<ScheduledPage[]>) | null = null;
 let isRunning = false;
 
 /**
@@ -46,7 +45,7 @@ async function runUptimeChecks(): Promise<void> {
     return;
   }
 
-  const pages = getPagesFn();
+  const pages = await getPagesFn();
   const enabledPages = pages.filter(p => p.enabled);
 
   if (enabledPages.length === 0) {
@@ -59,9 +58,9 @@ async function runUptimeChecks(): Promise<void> {
   logger.info(`[Uptime Scheduler] Running scheduled check at ${timeStr} for ${enabledPages.length} page(s)`);
 
   // Cleanup old history entries before running new checks
-  cleanupOldHistory();
+  await cleanupOldHistory();
 
-  const results = new Map<string, CheckResult>();
+  let checkedCount = 0;
 
   for (const page of enabledPages) {
     try {
@@ -73,8 +72,8 @@ async function runUptimeChecks(): Promise<void> {
         soft404Patterns: page.soft404Patterns || [],
       });
 
-      results.set(page.name, result);
-      appendHistory(result);
+      await appendHistory(page.id, result);
+      checkedCount++;
 
       if (result.success) {
         logger.status(result.name, result.status, result.responseTime, true);
@@ -90,19 +89,16 @@ async function runUptimeChecks(): Promise<void> {
     }
   }
 
-  // Write all statuses at once
-  writeStatus(results);
-
-  logger.info(`[Uptime Scheduler] Completed check for ${results.size} page(s)`);
+  logger.info(`[Uptime Scheduler] Completed check for ${checkedCount} page(s)`);
 }
 
 /**
  * Start the uptime scheduler with cron-based scheduling
- * @param getPages Function to get the list of pages to monitor
+ * @param getPages Async function to get the list of pages to monitor
  * @param config Optional configuration for timezone and check times
  */
 export function startUptimeScheduler(
-  getPages: () => ScheduledPage[],
+  getPages: () => Promise<ScheduledPage[]>,
   config: UptimeSchedulerConfig = {}
 ): void {
   if (isRunning) {

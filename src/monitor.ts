@@ -2,7 +2,7 @@ import type { MonitorConfig, CheckResult } from './types.js';
 import { getPageConfig } from './config.js';
 import { checkPage } from './checker.js';
 import { logger } from './logger.js';
-import { writeStatus, appendHistory, cleanupOldHistory } from './status-writer.js';
+import { writeStatus, cleanupOldHistory } from './status-writer.js';
 
 export class Monitor {
   private config: MonitorConfig;
@@ -59,8 +59,9 @@ export class Monitor {
       const result = await checkPage(page);
 
       this.results.set(page.name, result);
-      writeStatus(this.results);
-      appendHistory(result);
+      writeStatus();
+      // Note: This legacy monitor class does not have page UUIDs.
+      // Use the uptime-scheduler for Supabase-backed monitoring.
 
       if (result.success) {
         logger.status(result.name, result.status, result.responseTime, true);

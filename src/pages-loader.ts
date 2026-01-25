@@ -1,5 +1,4 @@
-import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { supabase } from './lib/supabase.js';
 import type { PageConfig } from './types.js';
 
 export interface PageEntry {
@@ -15,66 +14,67 @@ export interface PageEntry {
   soft404Patterns?: string[];
 }
 
-const PAGES_FILE = join(process.cwd(), 'data', 'pages.json');
+export async function loadPagesFromJson(): Promise<PageConfig[]> {
+  const { data, error } = await supabase
+    .from('pages')
+    .select('*, clients(name)')
+    .eq('enabled', true);
 
-function ensureDataDir(): void {
-  const dir = dirname(PAGES_FILE);
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
-}
-
-export function loadPagesFromJson(): PageConfig[] {
-  ensureDataDir();
-
-  if (!existsSync(PAGES_FILE)) {
-    writeFileSync(PAGES_FILE, '[]', 'utf-8');
+  if (error) {
+    console.error('[Pages Loader] Error loading pages from Supabase:', error.message);
     return [];
   }
 
-  try {
-    const content = readFileSync(PAGES_FILE, 'utf-8');
-    const entries = JSON.parse(content) as PageEntry[];
-
-    return entries
-      .filter(entry => entry.enabled)
-      .map(entry => ({
-        name: `[${entry.client}] ${entry.name}`,
-        url: entry.url,
-        interval: entry.interval,
-        timeout: entry.timeout,
-        soft404Patterns: entry.soft404Patterns,
-      }));
-  } catch {
+  if (!data || data.length === 0) {
     return [];
   }
+
+  return data.map((page: any) => ({
+    name: `[${page.clients?.name || 'Unknown'}] ${page.name}`,
+    url: page.url,
+    interval: page.interval,
+    timeout: page.timeout,
+    soft404Patterns: page.soft_404_patterns || undefined,
+  }));
 }
 
 /**
  * Load all page entries (for scheduler use)
  * Returns full PageEntry objects with id and enabled status
  */
-export function loadAllPageEntries(): PageEntry[] {
-  ensureDataDir();
+export async function loadAllPageEntries(): Promise<PageEntry[]> {
+  const { data, error } = await supabase
+    .from('pages')
+    .select('*, clients(name)');
 
-  if (!existsSync(PAGES_FILE)) {
-    writeFileSync(PAGES_FILE, '[]', 'utf-8');
+  if (error) {
+    console.error('[Pages Loader] Error loading pages from Supabase:', error.message);
     return [];
   }
 
-  try {
-    const content = readFileSync(PAGES_FILE, 'utf-8');
-    return JSON.parse(content) as PageEntry[];
-  } catch {
+  if (!data || data.length === 0) {
     return [];
   }
+
+  return data.map((page: any) => ({
+    id: page.id,
+    client: page.clients?.name || 'Unknown',
+    name: page.name,
+    url: page.url,
+    interval: page.interval,
+    timeout: page.timeout,
+    enabled: page.enabled,
+    createdAt: page.created_at,
+    updatedAt: page.updated_at,
+    soft404Patterns: page.soft_404_patterns || undefined,
+  }));
 }
 
 /**
  * Load page entries formatted for scheduler (with name including client)
  */
-export function loadPagesForScheduler() {
-  const entries = loadAllPageEntries();
+export async function loadPagesForScheduler() {
+  const entries = await loadAllPageEntries();
   return entries.map(entry => ({
     id: entry.id,
     name: `[${entry.client}] ${entry.name}`,
