@@ -12,6 +12,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
+import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 
 interface HourlyAvg {
   hour: string
@@ -123,7 +124,7 @@ export function ResponseTimeChart({ data }: ResponseTimeChartProps) {
                 borderRadius: '6px',
               }}
               labelStyle={{ color: colors.tooltipText }}
-              formatter={(value) => [`${value}ms`, 'Avg']}
+              formatter={(value: ValueType) => [`${value}ms`, 'Avg']}
             />
             <Line
               type="monotone"
@@ -177,7 +178,7 @@ export function UptimeChart({ data }: UptimeChartProps) {
                 borderRadius: '6px',
               }}
               labelStyle={{ color: colors.tooltipText }}
-              formatter={(value) => [`${value}%`, 'Uptime']}
+              formatter={(value: ValueType) => [`${value}%`, 'Uptime']}
             />
             <Bar
               dataKey="uptime"
