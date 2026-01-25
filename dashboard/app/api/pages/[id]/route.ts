@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getPageById, updatePage, deletePage, validatePageInput } from '@/lib/pages-store'
+import { getPageById, updatePage, deletePage, validatePageInput } from '@/lib/supabase-pages-store'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const page = getPageById(id)
+    const page = await getPageById(id)
 
     if (!page) {
       return NextResponse.json({ error: 'Page not found' }, { status: 404 })
@@ -17,6 +17,7 @@ export async function GET(
 
     return NextResponse.json(page)
   } catch (error) {
+    console.error('Error fetching page:', error)
     return NextResponse.json(
       { error: 'Failed to fetch page' },
       { status: 500 }
@@ -32,7 +33,7 @@ export async function PUT(
     const { id } = await params
     const data = await request.json()
 
-    const existing = getPageById(id)
+    const existing = await getPageById(id)
     if (!existing) {
       return NextResponse.json({ error: 'Page not found' }, { status: 404 })
     }
@@ -47,7 +48,7 @@ export async function PUT(
       )
     }
 
-    const updated = updatePage(id, {
+    const updated = await updatePage(id, {
       client: data.client?.trim() ?? existing.client,
       name: data.name?.trim() ?? existing.name,
       url: data.url?.trim() ?? existing.url,
@@ -59,6 +60,7 @@ export async function PUT(
 
     return NextResponse.json(updated)
   } catch (error) {
+    console.error('Error updating page:', error)
     return NextResponse.json(
       { error: 'Failed to update page' },
       { status: 500 }
@@ -72,7 +74,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const success = deletePage(id)
+    const success = await deletePage(id)
 
     if (!success) {
       return NextResponse.json({ error: 'Page not found' }, { status: 404 })
@@ -80,6 +82,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    console.error('Error deleting page:', error)
     return NextResponse.json(
       { error: 'Failed to delete page' },
       { status: 500 }

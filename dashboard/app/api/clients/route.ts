@@ -2,19 +2,13 @@ import { NextResponse } from 'next/server'
 import {
   getAllClients,
   createClient,
-  getOrCreateClientsFromPages,
-} from '@/lib/clients-store'
-import { getAllPages } from '@/lib/pages-store'
+} from '@/lib/supabase-clients-store'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    // Ensure all clients from pages exist
-    const pages = getAllPages()
-    getOrCreateClientsFromPages(pages)
-
-    const clients = getAllClients()
+    const clients = await getAllClients()
     return NextResponse.json(clients)
   } catch (error) {
     console.error('Error getting clients:', error)
@@ -30,7 +24,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 })
     }
 
-    const client = createClient({ name: body.name.trim() })
+    const client = await createClient({ name: body.name.trim() })
     return NextResponse.json(client)
   } catch (error) {
     console.error('Error creating client:', error)
