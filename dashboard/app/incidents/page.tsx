@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, Clock, ExternalLink, XCircle, AlertOctagon } from 'lucide-react'
+import { AlertTriangle, Clock, ExternalLink, XCircle, AlertOctagon, Gauge } from 'lucide-react'
 import Breadcrumbs from '@/components/Breadcrumbs'
 import FiltersBar from '@/components/FiltersBar'
 import FilterChip from '@/components/FilterChip'
@@ -175,14 +175,10 @@ export default function IncidentsPage() {
     }
   }, [incidents])
 
-  // Find page ID from pageId string
+  // pageId is now a UUID directly from the incidents table
   const getPageDbId = useCallback((pageId: string) => {
-    // pageId format: "[ClientName] PageName"
-    const match = pageId.match(/^\[(.+?)\] (.+)$/)
-    if (!match) return null
-    const [, clientName, pageName] = match
-    const page = pages.find(p => p.client === clientName && p.name === pageName)
-    return page?.id || null
+    const page = pages.find(p => p.id === pageId)
+    return page?.id || pageId
   }, [pages])
 
   if (loading) {
@@ -238,6 +234,13 @@ export default function IncidentsPage() {
           </div>
           <div className="card-label">Erros</div>
           <div className="card-value offline">{stats.errors}</div>
+        </div>
+        <div className={`card ${stats.slow > 0 ? 'card-highlight-warning' : ''}`}>
+          <div className="card-icon">
+            <Gauge size={20} />
+          </div>
+          <div className="card-label">Lentidao</div>
+          <div className="card-value slow">{stats.slow}</div>
         </div>
       </div>
 
