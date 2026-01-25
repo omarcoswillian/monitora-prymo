@@ -21,7 +21,7 @@ export interface AIReport {
 
 export type AIReportInput = Omit<AIReport, 'id' | 'createdAt'>
 
-// Database row type
+// Database row type (no joins - client name resolved separately)
 interface DbAIReport {
   id: string
   client_id: string | null
@@ -34,19 +34,36 @@ interface DbAIReport {
   error?: string
   completed_at?: string
   data?: ClientReportData | GlobalReportData | null // JSONB is automatically parsed
-  clients?: { name: string } | null
 }
 
 // ===== HELPERS =====
 
-function dbToReport(row: DbAIReport): AIReport {
+// Client name cache to avoid Supabase joins (which fail when FK is missing)
+let clientNameCache: Map<string, string> | null = null
+
+async function loadClientNames(): Promise<Map<string, string>> {
+  if (clientNameCache) return clientNameCache
+
+  const { data, error } = await supabase
+    .from('clients')
+    .select('id, name')
+
+  if (error || !data) {
+    return new Map()
+  }
+
+  clientNameCache = new Map(data.map(c => [c.id, c.name]))
+  return clientNameCache
+}
+
+function dbToReport(row: DbAIReport, clientNames: Map<string, string>): AIReport {
   // JSONB is automatically parsed by Supabase client
   const data: ClientReportData | GlobalReportData = row.data || ({} as ClientReportData)
 
   return {
     id: row.id,
     type: row.report_type as 'client' | 'global',
-    clientName: row.clients?.name || null,
+    clientName: row.client_id ? (clientNames.get(row.client_id) || null) : null,
     period: {
       start: row.period_start,
       end: row.period_end,
@@ -81,17 +98,20 @@ export async function getAllAIReports(): Promise<AIReport[]> {
     return []
   }
 
-  const { data, error } = await supabase
-    .from('ai_reports')
-    .select('*, clients(name)')
-    .order('created_at', { ascending: false })
+  const [clientNames, { data, error }] = await Promise.all([
+    loadClientNames(),
+    supabase
+      .from('ai_reports')
+      .select('id, client_id, report_type, content, period_start, period_end, created_at, status, error, completed_at, data')
+      .order('created_at', { ascending: false }),
+  ])
 
   if (error || !data) {
     console.error('[AIReports] Error fetching reports:', error)
     return []
   }
 
-  return (data as DbAIReport[]).map(dbToReport)
+  return (data as DbAIReport[]).map(row => dbToReport(row, clientNames))
 }
 
 export async function getAIReportById(id: string): Promise<AIReport | undefined> {
@@ -99,17 +119,20 @@ export async function getAIReportById(id: string): Promise<AIReport | undefined>
     return undefined
   }
 
-  const { data, error } = await supabase
-    .from('ai_reports')
-    .select('*, clients(name)')
-    .eq('id', id)
-    .single()
+  const [clientNames, { data, error }] = await Promise.all([
+    loadClientNames(),
+    supabase
+      .from('ai_reports')
+      .select('id, client_id, report_type, content, period_start, period_end, created_at, status, error, completed_at, data')
+      .eq('id', id)
+      .single(),
+  ])
 
   if (error || !data) {
     return undefined
   }
 
-  return dbToReport(data as DbAIReport)
+  return dbToReport(data as DbAIReport, clientNames)
 }
 
 export async function getAIReportsByClient(clientName: string): Promise<AIReport[]> {
@@ -117,29 +140,30 @@ export async function getAIReportsByClient(clientName: string): Promise<AIReport
     return []
   }
 
-  // First get the client ID
   const clientId = await getClientIdByName(clientName)
   if (!clientId) {
     return []
   }
 
-  const { data, error } = await supabase
-    .from('ai_reports')
-    .select('*, clients(name)')
-    .eq('client_id', clientId)
-    .order('created_at', { ascending: false })
+  const [clientNames, { data, error }] = await Promise.all([
+    loadClientNames(),
+    supabase
+      .from('ai_reports')
+      .select('id, client_id, report_type, content, period_start, period_end, created_at, status, error, completed_at, data')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false }),
+  ])
 
   if (error || !data) {
     console.error('[AIReports] Error fetching client reports:', error)
     return []
   }
 
-  return (data as DbAIReport[]).map(dbToReport)
+  return (data as DbAIReport[]).map(row => dbToReport(row, clientNames))
 }
 
 export async function createAIReport(input: AIReportInput): Promise<AIReport> {
   if (!isSupabaseConfigured()) {
-    // Return a mock report for non-configured state
     return {
       id: 'mock-' + Date.now(),
       ...input,
@@ -147,7 +171,6 @@ export async function createAIReport(input: AIReportInput): Promise<AIReport> {
     }
   }
 
-  // Get client ID if this is a client report
   let clientId: string | null = null
   if (input.type === 'client' && input.clientName) {
     clientId = await getClientIdByName(input.clientName)
@@ -164,9 +187,9 @@ export async function createAIReport(input: AIReportInput): Promise<AIReport> {
       status: input.status,
       error: input.error,
       completed_at: input.completedAt,
-      data: input.data, // JSONB - no need to stringify
+      data: input.data,
     })
-    .select('*, clients(name)')
+    .select('id, client_id, report_type, content, period_start, period_end, created_at, status, error, completed_at, data')
     .single()
 
   if (error || !data) {
@@ -174,7 +197,8 @@ export async function createAIReport(input: AIReportInput): Promise<AIReport> {
     throw new Error('Failed to create AI report')
   }
 
-  return dbToReport(data as DbAIReport)
+  const clientNames = await loadClientNames()
+  return dbToReport(data as DbAIReport, clientNames)
 }
 
 export async function updateAIReport(id: string, updates: Partial<AIReport>): Promise<AIReport | null> {
@@ -197,14 +221,14 @@ export async function updateAIReport(id: string, updates: Partial<AIReport>): Pr
     updateData.completed_at = updates.completedAt
   }
   if (updates.data !== undefined) {
-    updateData.data = updates.data // JSONB - no need to stringify
+    updateData.data = updates.data
   }
 
   const { data, error } = await supabase
     .from('ai_reports')
     .update(updateData)
     .eq('id', id)
-    .select('*, clients(name)')
+    .select('id, client_id, report_type, content, period_start, period_end, created_at, status, error, completed_at, data')
     .single()
 
   if (error || !data) {
@@ -212,7 +236,8 @@ export async function updateAIReport(id: string, updates: Partial<AIReport>): Pr
     return null
   }
 
-  return dbToReport(data as DbAIReport)
+  const clientNames = await loadClientNames()
+  return dbToReport(data as DbAIReport, clientNames)
 }
 
 export async function deleteAIReport(id: string): Promise<boolean> {
@@ -238,19 +263,22 @@ export async function getRecentAIReports(limit: number = 10): Promise<AIReport[]
     return []
   }
 
-  const { data, error } = await supabase
-    .from('ai_reports')
-    .select('*, clients(name)')
-    .eq('status', 'completed')
-    .order('created_at', { ascending: false })
-    .limit(limit)
+  const [clientNames, { data, error }] = await Promise.all([
+    loadClientNames(),
+    supabase
+      .from('ai_reports')
+      .select('id, client_id, report_type, content, period_start, period_end, created_at, status, error, completed_at, data')
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false })
+      .limit(limit),
+  ])
 
   if (error || !data) {
     console.error('[AIReports] Error fetching recent reports:', error)
     return []
   }
 
-  return (data as DbAIReport[]).map(dbToReport)
+  return (data as DbAIReport[]).map(row => dbToReport(row, clientNames))
 }
 
 export async function cleanOldReports(daysToKeep: number = 30): Promise<number> {

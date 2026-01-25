@@ -162,9 +162,7 @@ export default function ClientDetailPage() {
     try {
       let url = "/api/audits";
       if (clientPages.length > 0) {
-        const pageIds = clientPages
-          .map((p) => `[${p.client}] ${p.name}`)
-          .join(",");
+        const pageIds = clientPages.map((p) => p.id).join(",");
         url = `/api/audits?pageIds=${encodeURIComponent(pageIds)}`;
       }
       const res = await fetch(url);
@@ -220,7 +218,7 @@ export default function ClientDetailPage() {
       const statusEntry = status.find(
         (s) => s.name === `[${page.client}] ${page.name}`,
       );
-      const auditEntry = audits.latest[`[${page.client}] ${page.name}`];
+      const auditEntry = audits.latest[page.id];
       return {
         ...page,
         status: statusEntry,
@@ -261,8 +259,9 @@ export default function ClientDetailPage() {
 
   // Calculate client audit averages
   const clientAuditAverages = useMemo(() => {
+    const clientPageIds = new Set(clientPages.map((p) => p.id));
     const clientAudits = Object.entries(audits.latest)
-      .filter(([pageId]) => pageId.startsWith(`[${clientId}]`))
+      .filter(([pid]) => clientPageIds.has(pid))
       .map(([, audit]) => audit.audit.scores)
       .filter(Boolean);
 
@@ -320,7 +319,7 @@ export default function ClientDetailPage() {
         seo: null as "up" | "down" | "stable" | null,
       },
     };
-  }, [audits.latest, clientId]);
+  }, [audits.latest, clientPages]);
 
   // Find best and worst pages by performance
   const bestWorstPages = useMemo(() => {
@@ -393,14 +392,13 @@ export default function ClientDetailPage() {
       return;
     }
 
-    const pageId = `[${page.client}] ${page.name}`;
-    setRunningAudit(pageId);
+    setRunningAudit(page.id);
 
     try {
       await fetch("/api/audits/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageId, url: page.url }),
+        body: JSON.stringify({ pageId: page.id, url: page.url }),
       });
       await fetchAudits(clientPages);
     } catch {

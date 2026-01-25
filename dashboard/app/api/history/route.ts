@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { getAllPages } from '@/lib/supabase-pages-store'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,15 +14,11 @@ interface DailyUptime {
   uptime: number
 }
 
-interface HistoryEntry {
+interface CheckRow {
   status: number
   response_time: number
   checked_at: string
   page_id: string
-  pages: {
-    client_id: string
-    clients: { name: string }[] | { name: string }
-  }[] | null
 }
 
 export async function GET(request: Request) {
@@ -34,16 +31,29 @@ export async function GET(request: Request) {
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
-    // Build query for check_history
+    // If filtering by client, resolve page IDs from pages store
+    let clientPageIds: Set<string> | null = null
+    if (clientFilter && !pageId) {
+      const allPages = await getAllPages()
+      const clientPages = allPages.filter(p => p.client === clientFilter)
+      clientPageIds = new Set(clientPages.map(p => p.id))
+    }
+
+    // Simple query without joins
     let query = supabase
       .from('check_history')
-      .select('status, response_time, checked_at, page_id, pages!inner(client_id, clients!inner(name))')
+      .select('status, response_time, checked_at, page_id')
       .gte('checked_at', sevenDaysAgo)
       .order('checked_at')
 
-    // Filter by page if specified
+    // Filter by specific page
     if (pageId) {
       query = query.eq('page_id', pageId)
+    }
+
+    // Filter by client page IDs
+    if (clientPageIds && clientPageIds.size > 0) {
+      query = query.in('page_id', Array.from(clientPageIds))
     }
 
     const { data: history, error } = await query
@@ -56,24 +66,12 @@ export async function GET(request: Request) {
       })
     }
 
-    // Cast to proper type
-    const typedHistory = (history || []) as unknown as HistoryEntry[]
-
-    // Filter by client if specified (after fetch due to nested filter limitation)
-    let filteredHistory = typedHistory
-    if (clientFilter && !pageId) {
-      filteredHistory = typedHistory.filter((e) => {
-        const page = Array.isArray(e.pages) ? e.pages[0] : e.pages
-        const client = page?.clients
-        const clientName = Array.isArray(client) ? client[0]?.name : client?.name
-        return clientName === clientFilter
-      })
-    }
+    const checks = (history || []) as CheckRow[]
 
     // Response time averages by hour (last 24 hours)
     const hourlyData = new Map<string, { total: number; count: number }>()
-    const recentEntries = filteredHistory.filter(
-      (e) => new Date(e.checked_at) >= new Date(twentyFourHoursAgo)
+    const recentEntries = checks.filter(
+      (e) => e.checked_at >= twentyFourHoursAgo
     )
 
     for (const entry of recentEntries) {
@@ -96,7 +94,7 @@ export async function GET(request: Request) {
     // Uptime by day (last 7 days)
     const dailyData = new Map<string, { success: number; total: number }>()
 
-    for (const entry of filteredHistory) {
+    for (const entry of checks) {
       const date = new Date(entry.checked_at)
       const dayKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 

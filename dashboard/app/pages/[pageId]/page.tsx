@@ -195,7 +195,7 @@ export default function PageDetailPage() {
   const fetchAuditHistory = useCallback(async () => {
     if (!page) return
     try {
-      const res = await fetch(`/api/audits/history?pageId=${encodeURIComponent(`[${page.client}] ${page.name}`)}`)
+      const res = await fetch(`/api/audits/history?pageId=${encodeURIComponent(page.id)}`)
       if (res.ok) {
         const json = await res.json()
         setAuditHistory(json)
@@ -208,7 +208,7 @@ export default function PageDetailPage() {
   const fetchIncidents = useCallback(async () => {
     if (!page) return
     try {
-      const res = await fetch(`/api/incidents?pageId=${encodeURIComponent(`[${page.client}] ${page.name}`)}`)
+      const res = await fetch(`/api/incidents?pageId=${encodeURIComponent(page.id)}`)
       if (res.ok) {
         const json = await res.json()
         setIncidents(json)
@@ -257,7 +257,7 @@ export default function PageDetailPage() {
   // Get audit data for this page
   const pageAudit = useMemo(() => {
     if (!page) return null
-    return audits.latest[`[${page.client}] ${page.name}`] || null
+    return audits.latest[page.id] || null
   }, [page, audits.latest])
 
   const toggleEnabled = async () => {
@@ -286,7 +286,7 @@ export default function PageDetailPage() {
       await fetch('/api/audits/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pageId: `[${page.client}] ${page.name}`, url: page.url }),
+        body: JSON.stringify({ pageId: page.id, url: page.url }),
       })
       await fetchAudits()
       await fetchAuditHistory()

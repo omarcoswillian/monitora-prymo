@@ -117,11 +117,20 @@ function calculateAvgResponseTime(checks: CheckHistoryRow[]): number {
 }
 
 function categorizeIncident(incident: IncidentRow): keyof IncidentSummary['byType'] {
-  const type = incident.type.toLowerCase()
-  if (type.includes('offline') || type.includes('down')) return 'offline'
-  if (type.includes('slow')) return 'slow'
-  if (type.includes('404') || type.includes('soft')) return 'soft404'
-  if (type.includes('timeout')) return 'timeout'
+  const type = incident.type.toUpperCase()
+  // Handle ErrorType values from incident-tracker
+  if (type === 'SOFT_404') return 'soft404'
+  if (type === 'HTTP_404') return 'offline'
+  if (type === 'HTTP_500') return 'offline'
+  if (type === 'TIMEOUT') return 'timeout'
+  if (type === 'CONNECTION_ERROR') return 'offline'
+  if (type === 'SLOW') return 'slow'
+  // Fallback for legacy string-based types
+  const lower = incident.type.toLowerCase()
+  if (lower.includes('offline') || lower.includes('down')) return 'offline'
+  if (lower.includes('slow')) return 'slow'
+  if (lower.includes('404') || lower.includes('soft')) return 'soft404'
+  if (lower.includes('timeout')) return 'timeout'
   return 'other'
 }
 
