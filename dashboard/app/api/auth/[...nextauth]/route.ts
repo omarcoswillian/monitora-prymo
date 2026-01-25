@@ -1,7 +1,14 @@
 import NextAuth from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 
+// NEXTAUTH_SECRET is required in production
+const secret = process.env.NEXTAUTH_SECRET
+if (!secret && process.env.NODE_ENV === 'production') {
+  console.error('FATAL: NEXTAUTH_SECRET is required in production')
+}
+
 const handler = NextAuth({
+  secret,
   providers: [
     CredentialsProvider({
       name: 'Credentials',

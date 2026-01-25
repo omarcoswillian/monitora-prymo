@@ -1,18 +1,48 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// Create client - will be empty strings during build, but that's ok
-// because the actual API calls only happen at runtime
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Log missing env vars (server-side only, once)
+if (typeof window === 'undefined') {
+  if (!supabaseUrl) {
+    console.warn('[Supabase] Missing NEXT_PUBLIC_SUPABASE_URL')
+  }
+  if (!supabaseAnonKey) {
+    console.warn('[Supabase] Missing NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  }
+}
 
-// Helper to check if env vars are loaded
+// Create client only if both vars exist, otherwise create a dummy client
+let supabase: SupabaseClient
+
+if (supabaseUrl && supabaseAnonKey) {
+  supabase = createClient(supabaseUrl, supabaseAnonKey)
+} else {
+  // Create a placeholder that returns empty results instead of crashing
+  // This allows the app to boot and show a proper error message
+  supabase = {
+    from: () => ({
+      select: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured', code: 'NOT_CONFIGURED' } }),
+      insert: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured', code: 'NOT_CONFIGURED' } }),
+      update: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured', code: 'NOT_CONFIGURED' } }),
+      delete: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured', code: 'NOT_CONFIGURED' } }),
+      eq: function() { return this },
+      neq: function() { return this },
+      gte: function() { return this },
+      lte: function() { return this },
+      order: function() { return this },
+      limit: function() { return this },
+      single: function() { return this },
+    }),
+  } as unknown as SupabaseClient
+}
+
+export { supabase }
+
+// Helper to check if Supabase is properly configured
 export function isSupabaseConfigured(): boolean {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  )
+  return Boolean(supabaseUrl && supabaseAnonKey)
 }
 
 // ============================================
