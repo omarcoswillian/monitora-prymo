@@ -1,6 +1,7 @@
 import * as cron from 'node-cron';
 import { checkPage } from '../checker.js';
 import { appendHistory, cleanupOldHistory } from '../status-writer.js';
+import { trackIncident } from '../incident-tracker.js';
 import { logger } from '../logger.js';
 
 interface ScheduledPage {
@@ -73,6 +74,7 @@ async function runUptimeChecks(): Promise<void> {
       });
 
       await appendHistory(page.id, result);
+      await trackIncident(page.id, result);
       checkedCount++;
 
       if (result.success) {

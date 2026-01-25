@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { getAllPages } from '@/lib/supabase-pages-store'
 
 export const dynamic = 'force-dynamic'
+
+type ErrorType = 'HTTP_404' | 'HTTP_500' | 'TIMEOUT' | 'SOFT_404' | 'CONNECTION_ERROR' | 'UNKNOWN'
+type StatusLabel = 'Online' | 'Offline' | 'Lento' | 'Soft 404'
 
 interface IncidentEntry {
   id: string
@@ -12,22 +16,15 @@ interface IncidentEntry {
   startedAt: string
   endedAt: string | null
   duration: number | null
-  type: string
+  type: ErrorType
+  status: StatusLabel
   message: string
 }
 
-interface DbIncident {
-  id: string
-  page_id: string
-  type: string
-  message: string
-  started_at: string
-  resolved_at: string | null
-  pages: {
-    name: string
-    url: string
-    clients: { name: string } | { name: string }[] | null
-  } | null
+function deriveStatusLabel(type: string): StatusLabel {
+  if (type === 'SOFT_404') return 'Soft 404'
+  if (type === 'SLOW') return 'Lento'
+  return 'Offline'
 }
 
 export async function GET(request: NextRequest) {
@@ -35,9 +32,14 @@ export async function GET(request: NextRequest) {
   const filterPageId = searchParams.get('pageId')
 
   try {
+    // Get all pages for name/client mapping (avoids failing Supabase joins)
+    const pages = await getAllPages()
+    const pageMap = new Map(pages.map(p => [p.id, p]))
+
+    // Query incidents without joins
     let query = supabase
       .from('incidents')
-      .select('*, pages(name, url, clients(name))')
+      .select('id, page_id, type, message, started_at, resolved_at')
       .order('started_at', { ascending: false })
       .limit(100)
 
@@ -52,26 +54,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([])
     }
 
-    const typedIncidents = (incidents || []) as DbIncident[]
-
-    const result: IncidentEntry[] = typedIncidents.map((incident) => {
-      const pages = incident.pages
+    const result: IncidentEntry[] = (incidents || []).map((incident) => {
+      const page = pageMap.get(incident.page_id)
       const duration = incident.resolved_at
         ? new Date(incident.resolved_at).getTime() - new Date(incident.started_at).getTime()
         : null
-      const clientData = pages?.clients
-      const clientName = Array.isArray(clientData) ? clientData[0]?.name : clientData?.name
 
       return {
         id: incident.id,
         pageId: incident.page_id,
-        pageName: pages?.name || 'Unknown',
-        clientName: clientName || 'Unknown',
-        url: pages?.url || '',
+        pageName: page?.name || 'Unknown',
+        clientName: page?.client || 'Unknown',
+        url: page?.url || '',
         startedAt: incident.started_at,
         endedAt: incident.resolved_at,
         duration,
-        type: incident.type,
+        type: (incident.type || 'UNKNOWN') as ErrorType,
+        status: deriveStatusLabel(incident.type),
         message: incident.message,
       }
     })
