@@ -123,7 +123,7 @@ export function ResponseTimeChart({ data }: ResponseTimeChartProps) {
                 borderRadius: '6px',
               }}
               labelStyle={{ color: colors.tooltipText }}
-              formatter={(value: number) => [`${value}ms`, 'Avg']}
+              formatter={(value) => [`${value}ms`, 'Avg']}
             />
             <Line
               type="monotone"
@@ -177,7 +177,7 @@ export function UptimeChart({ data }: UptimeChartProps) {
                 borderRadius: '6px',
               }}
               labelStyle={{ color: colors.tooltipText }}
-              formatter={(value: number) => [`${value}%`, 'Uptime']}
+              formatter={(value) => [`${value}%`, 'Uptime']}
             />
             <Bar
               dataKey="uptime"
