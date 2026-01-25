@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
   LineChart,
   Line,
@@ -13,27 +13,9 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
-// Helper to safely format numeric values from Recharts
-function formatValue(value: unknown): string {
-  if (Array.isArray(value)) {
-    return String(value[0] ?? '')
-  }
-  if (typeof value === 'number') {
-    return String(value)
-  }
-  if (typeof value === 'string') {
-    return value
-  }
-  return String(value ?? '')
-}
-
-function formatMs(value: unknown): string {
-  return `${formatValue(value)}ms`
-}
-
-function formatPercent(value: unknown): string {
-  return `${formatValue(value)}%`
-}
+// ============================================
+// Types
+// ============================================
 
 interface HourlyAvg {
   hour: string
@@ -63,101 +45,156 @@ interface ChartColors {
   barSuccess: string
 }
 
+// ============================================
+// Custom Tooltip Components (avoid formatter typing issues)
+// ============================================
+
+interface CustomTooltipProps {
+  active?: boolean
+  payload?: Array<{ value: number; name: string }>
+  label?: string
+  suffix: string
+  valueLabel: string
+  colors: ChartColors
+}
+
+function CustomChartTooltip({ active, payload, label, suffix, valueLabel, colors }: CustomTooltipProps) {
+  if (!active || !payload || payload.length === 0) {
+    return null
+  }
+
+  const value = payload[0]?.value ?? 0
+
+  return (
+    <div
+      style={{
+        background: colors.tooltipBg,
+        border: `1px solid ${colors.tooltipBorder}`,
+        borderRadius: '6px',
+        padding: '8px 12px',
+      }}
+    >
+      <p style={{ color: colors.tooltipText, margin: 0, marginBottom: 4 }}>{label}</p>
+      <p style={{ color: colors.tooltipText, margin: 0 }}>
+        <strong>{valueLabel}:</strong> {value}{suffix}
+      </p>
+    </div>
+  )
+}
+
+// ============================================
+// Hook for dynamic theme colors
+// ============================================
+
+const defaultColors: ChartColors = {
+  grid: '#333',
+  axis: '#888',
+  tooltipBg: '#1a1a1a',
+  tooltipBorder: '#333',
+  tooltipText: '#888',
+  linePrimary: '#3b82f6',
+  barSuccess: '#22c55e',
+}
+
 function useChartColors(): ChartColors {
-  const [colors, setColors] = useState<ChartColors>({
-    grid: '#333',
-    axis: '#888',
-    tooltipBg: '#1a1a1a',
-    tooltipBorder: '#333',
-    tooltipText: '#888',
-    linePrimary: '#3b82f6',
-    barSuccess: '#22c55e',
-  })
+  const [colors, setColors] = useState<ChartColors>(defaultColors)
+
+  const updateColors = useCallback(() => {
+    if (typeof window === 'undefined') return
+
+    const root = document.documentElement
+    const styles = getComputedStyle(root)
+
+    setColors({
+      grid: styles.getPropertyValue('--border-subtle').trim() || defaultColors.grid,
+      axis: styles.getPropertyValue('--text-tertiary').trim() || defaultColors.axis,
+      tooltipBg: styles.getPropertyValue('--bg-elevated').trim() || defaultColors.tooltipBg,
+      tooltipBorder: styles.getPropertyValue('--border-default').trim() || defaultColors.tooltipBorder,
+      tooltipText: styles.getPropertyValue('--text-secondary').trim() || defaultColors.tooltipText,
+      linePrimary: styles.getPropertyValue('--accent-primary').trim() || defaultColors.linePrimary,
+      barSuccess: styles.getPropertyValue('--color-success').trim() || defaultColors.barSuccess,
+    })
+  }, [])
 
   useEffect(() => {
-    const updateColors = () => {
-      const root = document.documentElement
-      const styles = getComputedStyle(root)
-
-      setColors({
-        grid: styles.getPropertyValue('--border-subtle').trim() || '#333',
-        axis: styles.getPropertyValue('--text-tertiary').trim() || '#888',
-        tooltipBg: styles.getPropertyValue('--bg-elevated').trim() || '#1a1a1a',
-        tooltipBorder: styles.getPropertyValue('--border-default').trim() || '#333',
-        tooltipText: styles.getPropertyValue('--text-secondary').trim() || '#888',
-        linePrimary: styles.getPropertyValue('--accent-primary').trim() || '#3b82f6',
-        barSuccess: styles.getPropertyValue('--color-success').trim() || '#22c55e',
-      })
-    }
-
     updateColors()
 
-    // Listen for theme changes
     const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
+      for (const mutation of mutations) {
         if (mutation.attributeName === 'data-theme') {
           updateColors()
+          break
         }
-      })
+      }
     })
 
     observer.observe(document.documentElement, { attributes: true })
 
     return () => observer.disconnect()
-  }, [])
+  }, [updateColors])
 
   return colors
 }
 
+// ============================================
+// Chart Components
+// ============================================
+
 export function ResponseTimeChart({ data }: ResponseTimeChartProps) {
   const colors = useChartColors()
 
-  const formattedData = data.map(d => ({
-    ...d,
+  if (data.length === 0) {
+    return (
+      <div className="chart-container">
+        <h3 className="chart-title">Response Time (24h)</h3>
+        <div className="chart-empty">No data available</div>
+      </div>
+    )
+  }
+
+  const formattedData = data.map((d) => ({
+    hour: d.hour,
+    avg: d.avg,
     label: d.hour.split(' ')[1] || d.hour,
   }))
 
   return (
     <div className="chart-container">
       <h3 className="chart-title">Response Time (24h)</h3>
-      {data.length === 0 ? (
-        <div className="chart-empty">No data available</div>
-      ) : (
-        <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={formattedData}>
-            <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
-            <XAxis
-              dataKey="label"
-              stroke={colors.axis}
-              fontSize={12}
-              tickLine={false}
-            />
-            <YAxis
-              stroke={colors.axis}
-              fontSize={12}
-              tickLine={false}
-              tickFormatter={v => `${v}ms`}
-            />
-            <Tooltip
-              contentStyle={{
-                background: colors.tooltipBg,
-                border: `1px solid ${colors.tooltipBorder}`,
-                borderRadius: '6px',
-              }}
-              labelStyle={{ color: colors.tooltipText }}
-              formatter={(value) => formatMs(value)}
-            />
-            <Line
-              type="monotone"
-              dataKey="avg"
-              stroke={colors.linePrimary}
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      )}
+      <ResponsiveContainer width="100%" height={200}>
+        <LineChart data={formattedData}>
+          <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
+          <XAxis
+            dataKey="label"
+            stroke={colors.axis}
+            fontSize={12}
+            tickLine={false}
+          />
+          <YAxis
+            stroke={colors.axis}
+            fontSize={12}
+            tickLine={false}
+            tickFormatter={(v: number) => `${v}ms`}
+          />
+          <Tooltip
+            content={
+              <CustomChartTooltip
+                suffix="ms"
+                valueLabel="Avg"
+                colors={colors}
+              />
+            }
+          />
+          <Line
+            type="monotone"
+            dataKey="avg"
+            stroke={colors.linePrimary}
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 4 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
     </div>
   )
 }
@@ -165,50 +202,56 @@ export function ResponseTimeChart({ data }: ResponseTimeChartProps) {
 export function UptimeChart({ data }: UptimeChartProps) {
   const colors = useChartColors()
 
-  const formattedData = data.map(d => ({
-    ...d,
+  if (data.length === 0) {
+    return (
+      <div className="chart-container">
+        <h3 className="chart-title">Uptime (7 days)</h3>
+        <div className="chart-empty">No data available</div>
+      </div>
+    )
+  }
+
+  const formattedData = data.map((d) => ({
+    date: d.date,
+    uptime: d.uptime,
     label: d.date.slice(5),
   }))
 
   return (
     <div className="chart-container">
       <h3 className="chart-title">Uptime (7 days)</h3>
-      {data.length === 0 ? (
-        <div className="chart-empty">No data available</div>
-      ) : (
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={formattedData}>
-            <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
-            <XAxis
-              dataKey="label"
-              stroke={colors.axis}
-              fontSize={12}
-              tickLine={false}
-            />
-            <YAxis
-              stroke={colors.axis}
-              fontSize={12}
-              tickLine={false}
-              tickFormatter={v => `${v}%`}
-              domain={[0, 100]}
-            />
-            <Tooltip
-              contentStyle={{
-                background: colors.tooltipBg,
-                border: `1px solid ${colors.tooltipBorder}`,
-                borderRadius: '6px',
-              }}
-              labelStyle={{ color: colors.tooltipText }}
-              formatter={(value) => formatPercent(value)}
-            />
-            <Bar
-              dataKey="uptime"
-              fill={colors.barSuccess}
-              radius={[4, 4, 0, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      )}
+      <ResponsiveContainer width="100%" height={200}>
+        <BarChart data={formattedData}>
+          <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
+          <XAxis
+            dataKey="label"
+            stroke={colors.axis}
+            fontSize={12}
+            tickLine={false}
+          />
+          <YAxis
+            stroke={colors.axis}
+            fontSize={12}
+            tickLine={false}
+            tickFormatter={(v: number) => `${v}%`}
+            domain={[0, 100]}
+          />
+          <Tooltip
+            content={
+              <CustomChartTooltip
+                suffix="%"
+                valueLabel="Uptime"
+                colors={colors}
+              />
+            }
+          />
+          <Bar
+            dataKey="uptime"
+            fill={colors.barSuccess}
+            radius={[4, 4, 0, 0]}
+          />
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   )
 }
