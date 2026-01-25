@@ -12,7 +12,28 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
+
+// Helper to safely format numeric values from Recharts
+function formatValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return String(value[0] ?? '')
+  }
+  if (typeof value === 'number') {
+    return String(value)
+  }
+  if (typeof value === 'string') {
+    return value
+  }
+  return String(value ?? '')
+}
+
+function formatMs(value: unknown): string {
+  return `${formatValue(value)}ms`
+}
+
+function formatPercent(value: unknown): string {
+  return `${formatValue(value)}%`
+}
 
 interface HourlyAvg {
   hour: string
@@ -124,7 +145,7 @@ export function ResponseTimeChart({ data }: ResponseTimeChartProps) {
                 borderRadius: '6px',
               }}
               labelStyle={{ color: colors.tooltipText }}
-              formatter={(value: ValueType) => [`${value}ms`, 'Avg']}
+              formatter={(value) => formatMs(value)}
             />
             <Line
               type="monotone"
@@ -178,7 +199,7 @@ export function UptimeChart({ data }: UptimeChartProps) {
                 borderRadius: '6px',
               }}
               labelStyle={{ color: colors.tooltipText }}
-              formatter={(value: ValueType) => [`${value}%`, 'Uptime']}
+              formatter={(value) => formatPercent(value)}
             />
             <Bar
               dataKey="uptime"
