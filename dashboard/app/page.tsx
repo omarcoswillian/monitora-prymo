@@ -269,7 +269,7 @@ export default function Dashboard() {
       const statusEntry = status.find(
         (s) => s.name === `[${page.client}] ${page.name}`,
       );
-      const auditEntry = audits.latest[`[${page.client}] ${page.name}`];
+      const auditEntry = audits.latest[page.id];
       return {
         ...page,
         status: statusEntry,
@@ -341,14 +341,13 @@ export default function Dashboard() {
       return;
     }
 
-    const pageId = `[${page.client}] ${page.name}`;
-    setRunningAudit(pageId);
+    setRunningAudit(page.id);
 
     try {
       await fetch("/api/audits/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageId, url: page.url }),
+        body: JSON.stringify({ pageId: page.id, url: page.url }),
       });
       await fetchAudits();
     } catch {
@@ -545,7 +544,6 @@ export default function Dashboard() {
                   const isUrgent =
                     statusType === "offline" || statusType === "soft404";
                   const isWarning = statusType === "slow";
-                  const pageId = `[${entry.client}] ${entry.name}`;
                   const auditScores = entry.audit?.audit?.scores;
 
                   return (
@@ -704,15 +702,15 @@ export default function Dashboard() {
                           </Link>
                           <button
                             onClick={() => handleRunAudit(entry)}
-                            disabled={runningAudit === pageId || !entry.enabled}
-                            className={`btn btn-small btn-icon btn-audit ${runningAudit === pageId ? "running" : ""}`}
+                            disabled={runningAudit === entry.id || !entry.enabled}
+                            className={`btn btn-small btn-icon btn-audit ${runningAudit === entry.id ? "running" : ""}`}
                             title={
                               audits.apiKeyConfigured
                                 ? "Rodar auditoria"
                                 : "API key nao configurada"
                             }
                           >
-                            {runningAudit === pageId ? (
+                            {runningAudit === entry.id ? (
                               "..."
                             ) : (
                               <BarChart3 size={14} />

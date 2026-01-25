@@ -220,8 +220,8 @@ export async function GET(request: Request) {
     const pageIds = pageIdsParam ? pageIdsParam.split(',') : Array.from(latest.keys())
     const averages = await calculateAverages(pageIds)
 
-    // Check if API key is configured
-    const apiKeyConfigured = !!process.env.PAGESPEED_API_KEY
+    // PageSpeed API works without a key (lower rate limits)
+    const apiKeyConfigured = true
 
     return NextResponse.json({
       latest: latestObj,
@@ -244,7 +244,7 @@ export async function GET(request: Request) {
           seo: null,
         },
       },
-      apiKeyConfigured: !!process.env.PAGESPEED_API_KEY,
+      apiKeyConfigured: true,
     })
   }
 }

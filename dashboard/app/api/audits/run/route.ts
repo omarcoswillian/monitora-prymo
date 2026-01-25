@@ -189,15 +189,6 @@ function checkRateLimit(pageId: string): { limited: boolean; remainingSeconds: n
 }
 
 export async function POST(request: Request) {
-  const apiKey = process.env.PAGESPEED_API_KEY
-
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: 'PageSpeed API key not configured. Add PAGESPEED_API_KEY to .env' },
-      { status: 400 }
-    )
-  }
-
   try {
     const body = await request.json()
     const { pageId, url } = body
