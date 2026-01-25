@@ -16,6 +16,20 @@ interface IncidentEntry {
   message: string
 }
 
+interface DbIncident {
+  id: string
+  page_id: string
+  type: string
+  message: string
+  started_at: string
+  resolved_at: string | null
+  pages: {
+    name: string
+    url: string
+    clients: { name: string } | { name: string }[] | null
+  } | null
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const filterPageId = searchParams.get('pageId')
@@ -38,8 +52,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([])
     }
 
-    const result: IncidentEntry[] = (incidents || []).map((incident) => {
-      const pages = incident.pages as { name: string; url: string; clients: { name: string } | { name: string }[] | null } | null
+    const typedIncidents = (incidents || []) as DbIncident[]
+
+    const result: IncidentEntry[] = typedIncidents.map((incident) => {
+      const pages = incident.pages
       const duration = incident.resolved_at
         ? new Date(incident.resolved_at).getTime() - new Date(incident.started_at).getTime()
         : null

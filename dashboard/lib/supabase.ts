@@ -1,27 +1,19 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
-// Create a placeholder client for build time, real client for runtime
-let supabaseInstance: SupabaseClient | null = null
+// Create client - will be empty strings during build, but that's ok
+// because the actual API calls only happen at runtime
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-export const supabase = new Proxy({} as SupabaseClient, {
-  get(_, prop) {
-    if (!supabaseInstance) {
-      if (!supabaseUrl || !supabaseAnonKey) {
-        // During build, return a mock that won't be called
-        if (typeof window === 'undefined' && process.env.NODE_ENV === 'production') {
-          console.warn('Supabase client not initialized - missing environment variables')
-          return () => Promise.resolve({ data: null, error: null })
-        }
-        throw new Error('Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY')
-      }
-      supabaseInstance = createClient(supabaseUrl, supabaseAnonKey)
-    }
-    return supabaseInstance[prop as keyof SupabaseClient]
-  }
-})
+// Helper to check if env vars are loaded
+export function isSupabaseConfigured(): boolean {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  )
+}
 
 // ============================================
 // Database Types (match your Supabase tables)

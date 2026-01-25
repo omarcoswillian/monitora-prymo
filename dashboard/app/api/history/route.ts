@@ -13,6 +13,17 @@ interface DailyUptime {
   uptime: number
 }
 
+interface HistoryEntry {
+  status: number
+  response_time: number
+  checked_at: string
+  page_id: string
+  pages: {
+    client_id: string
+    clients: { name: string }[] | { name: string }
+  }[] | null
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const clientFilter = searchParams.get('client')
@@ -45,12 +56,17 @@ export async function GET(request: Request) {
       })
     }
 
+    // Cast to proper type
+    const typedHistory = (history || []) as unknown as HistoryEntry[]
+
     // Filter by client if specified (after fetch due to nested filter limitation)
-    let filteredHistory = history || []
+    let filteredHistory = typedHistory
     if (clientFilter && !pageId) {
-      filteredHistory = filteredHistory.filter((e: Record<string, unknown>) => {
-        const pages = e.pages as { clients: { name: string } } | null
-        return pages?.clients?.name === clientFilter
+      filteredHistory = typedHistory.filter((e) => {
+        const page = Array.isArray(e.pages) ? e.pages[0] : e.pages
+        const client = page?.clients
+        const clientName = Array.isArray(client) ? client[0]?.name : client?.name
+        return clientName === clientFilter
       })
     }
 
