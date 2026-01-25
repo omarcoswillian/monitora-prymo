@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { getAllPages } from '@/lib/supabase-pages-store'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,26 +38,20 @@ interface AuditAverages {
   }
 }
 
-interface DbAuditRow {
-  id: string
-  page_id: string
-  performance_score: number | null
-  accessibility_score: number | null
-  best_practices_score: number | null
-  seo_score: number | null
-  audited_at: string
-  pages: {
-    url: string
-  } | null
-}
-
 async function getLatestAudits(): Promise<Map<string, PageAuditEntry>> {
   const latest = new Map<string, PageAuditEntry>()
 
-  // Get the most recent audit for each page
+  // Get all pages to map page_id -> url
+  const pages = await getAllPages()
+  const pageUrlMap = new Map<string, string>()
+  for (const page of pages) {
+    pageUrlMap.set(page.id, page.url)
+  }
+
+  // Get audits without join (the pages join was failing silently)
   const { data: audits, error } = await supabase
     .from('audit_history')
-    .select('*, pages(url)')
+    .select('id, page_id, performance_score, accessibility_score, best_practices_score, seo_score, audited_at')
     .order('audited_at', { ascending: false })
 
   if (error || !audits) {
@@ -64,12 +59,10 @@ async function getLatestAudits(): Promise<Map<string, PageAuditEntry>> {
     return latest
   }
 
-  const typedAudits = audits as unknown as DbAuditRow[]
-
   // Group by page_id and keep only the latest
-  for (const audit of typedAudits) {
+  for (const audit of audits) {
     if (!latest.has(audit.page_id)) {
-      const url = audit.pages?.url || ''
+      const url = pageUrlMap.get(audit.page_id) || ''
       latest.set(audit.page_id, {
         pageId: audit.page_id,
         url,
