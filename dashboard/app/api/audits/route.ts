@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { readFileSync, existsSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { supabase } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,54 +37,63 @@ interface AuditAverages {
   }
 }
 
-const AUDITS_DIR = join(process.cwd(), '..', 'data', 'audits')
-
-function readAllAudits(): Map<string, PageAuditEntry[]> {
-  const result = new Map<string, PageAuditEntry[]>()
-
-  if (!existsSync(AUDITS_DIR)) {
-    return result
-  }
-
-  try {
-    const files = readdirSync(AUDITS_DIR).filter(f => f.endsWith('.json'))
-
-    for (const file of files) {
-      try {
-        const content = readFileSync(join(AUDITS_DIR, file), 'utf-8')
-        const entries: PageAuditEntry[] = JSON.parse(content)
-
-        if (entries.length > 0) {
-          result.set(entries[0].pageId, entries)
-        }
-      } catch {
-        // Skip invalid files
-      }
-    }
-  } catch {
-    // Directory doesn't exist or can't be read
-  }
-
-  return result
+interface DbAuditRow {
+  id: string
+  page_id: string
+  performance_score: number | null
+  accessibility_score: number | null
+  best_practices_score: number | null
+  seo_score: number | null
+  audited_at: string
+  pages: {
+    url: string
+  } | null
 }
 
-function getLatestAudits(): Map<string, PageAuditEntry> {
-  const all = readAllAudits()
+async function getLatestAudits(): Promise<Map<string, PageAuditEntry>> {
   const latest = new Map<string, PageAuditEntry>()
 
-  Array.from(all.entries()).forEach(([pageId, entries]) => {
-    if (entries.length > 0) {
-      entries.sort((a, b) => b.date.localeCompare(a.date))
-      latest.set(pageId, entries[0])
+  // Get the most recent audit for each page
+  const { data: audits, error } = await supabase
+    .from('audit_history')
+    .select('*, pages(url)')
+    .order('audited_at', { ascending: false })
+
+  if (error || !audits) {
+    console.error('Error fetching audits:', error)
+    return latest
+  }
+
+  const typedAudits = audits as unknown as DbAuditRow[]
+
+  // Group by page_id and keep only the latest
+  for (const audit of typedAudits) {
+    if (!latest.has(audit.page_id)) {
+      const url = audit.pages?.url || ''
+      latest.set(audit.page_id, {
+        pageId: audit.page_id,
+        url,
+        date: audit.audited_at.split('T')[0],
+        audit: {
+          url,
+          timestamp: audit.audited_at,
+          scores: {
+            performance: audit.performance_score,
+            accessibility: audit.accessibility_score,
+            bestPractices: audit.best_practices_score,
+            seo: audit.seo_score,
+          },
+          strategy: 'mobile',
+          success: true,
+        },
+      })
     }
-  })
+  }
 
   return latest
 }
 
-function calculateAverages(pageIds: string[], days: number = 7): AuditAverages {
-  const allAudits = readAllAudits()
-
+async function calculateAverages(pageIds: string[], days: number = 7): Promise<AuditAverages> {
   const scores = {
     performance: [] as number[],
     accessibility: [] as number[],
@@ -102,34 +110,57 @@ function calculateAverages(pageIds: string[], days: number = 7): AuditAverages {
 
   const cutoffDate = new Date()
   cutoffDate.setDate(cutoffDate.getDate() - days)
-  const cutoffStr = cutoffDate.toISOString().split('T')[0]
+  const cutoffStr = cutoffDate.toISOString()
 
   const prevCutoffDate = new Date()
   prevCutoffDate.setDate(prevCutoffDate.getDate() - days * 2)
-  const prevCutoffStr = prevCutoffDate.toISOString().split('T')[0]
+  const prevCutoffStr = prevCutoffDate.toISOString()
 
-  for (const pageId of pageIds) {
-    const history = allAudits.get(pageId) || []
+  // Query audits from the last 14 days (for current + previous period)
+  let query = supabase
+    .from('audit_history')
+    .select('page_id, performance_score, accessibility_score, best_practices_score, seo_score, audited_at')
+    .gte('audited_at', prevCutoffStr)
+    .order('audited_at', { ascending: false })
 
-    for (const entry of history) {
-      if (!entry.audit.success || !entry.audit.scores) continue
+  if (pageIds.length > 0) {
+    query = query.in('page_id', pageIds)
+  }
 
-      const s = entry.audit.scores
+  const { data: audits, error } = await query
 
-      // Current period
-      if (entry.date >= cutoffStr) {
-        if (s.performance !== null) scores.performance.push(s.performance)
-        if (s.accessibility !== null) scores.accessibility.push(s.accessibility)
-        if (s.bestPractices !== null) scores.bestPractices.push(s.bestPractices)
-        if (s.seo !== null) scores.seo.push(s.seo)
-      }
-      // Previous period for trend
-      else if (entry.date >= prevCutoffStr) {
-        if (s.performance !== null) prevScores.performance.push(s.performance)
-        if (s.accessibility !== null) prevScores.accessibility.push(s.accessibility)
-        if (s.bestPractices !== null) prevScores.bestPractices.push(s.bestPractices)
-        if (s.seo !== null) prevScores.seo.push(s.seo)
-      }
+  if (error || !audits) {
+    console.error('Error fetching audits for averages:', error)
+    return {
+      performance: null,
+      accessibility: null,
+      bestPractices: null,
+      seo: null,
+      trend: {
+        performance: null,
+        accessibility: null,
+        bestPractices: null,
+        seo: null,
+      },
+    }
+  }
+
+  for (const audit of audits) {
+    const auditDate = audit.audited_at
+
+    // Current period
+    if (auditDate >= cutoffStr) {
+      if (audit.performance_score !== null) scores.performance.push(audit.performance_score)
+      if (audit.accessibility_score !== null) scores.accessibility.push(audit.accessibility_score)
+      if (audit.best_practices_score !== null) scores.bestPractices.push(audit.best_practices_score)
+      if (audit.seo_score !== null) scores.seo.push(audit.seo_score)
+    }
+    // Previous period for trend
+    else if (auditDate >= prevCutoffStr) {
+      if (audit.performance_score !== null) prevScores.performance.push(audit.performance_score)
+      if (audit.accessibility_score !== null) prevScores.accessibility.push(audit.accessibility_score)
+      if (audit.best_practices_score !== null) prevScores.bestPractices.push(audit.best_practices_score)
+      if (audit.seo_score !== null) prevScores.seo.push(audit.seo_score)
     }
   }
 
@@ -177,7 +208,7 @@ export async function GET(request: Request) {
   const pageIdsParam = searchParams.get('pageIds')
 
   try {
-    const latest = getLatestAudits()
+    const latest = await getLatestAudits()
 
     // Convert Map to object for JSON response
     const latestObj: Record<string, PageAuditEntry> = {}
@@ -187,7 +218,7 @@ export async function GET(request: Request) {
 
     // Calculate averages for specified pages or all
     const pageIds = pageIdsParam ? pageIdsParam.split(',') : Array.from(latest.keys())
-    const averages = calculateAverages(pageIds)
+    const averages = await calculateAverages(pageIds)
 
     // Check if API key is configured
     const apiKeyConfigured = !!process.env.PAGESPEED_API_KEY
@@ -199,6 +230,21 @@ export async function GET(request: Request) {
     })
   } catch (error) {
     console.error('Error getting audits:', error)
-    return NextResponse.json({ error: 'Failed to get audits' }, { status: 500 })
+    return NextResponse.json({
+      latest: {},
+      averages: {
+        performance: null,
+        accessibility: null,
+        bestPractices: null,
+        seo: null,
+        trend: {
+          performance: null,
+          accessibility: null,
+          bestPractices: null,
+          seo: null,
+        },
+      },
+      apiKeyConfigured: !!process.env.PAGESPEED_API_KEY,
+    })
   }
 }

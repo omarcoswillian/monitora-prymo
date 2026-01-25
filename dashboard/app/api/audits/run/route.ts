@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { readFileSync, writeFileSync, renameSync, mkdirSync, existsSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { supabase } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // Allow up to 60 seconds for PageSpeed API
@@ -29,76 +28,65 @@ interface PageAuditEntry {
 }
 
 const PAGESPEED_API_URL = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed'
-const AUDITS_DIR = join(process.cwd(), '..', 'data', 'audits')
 
 // Rate limiting for manual audits (per page, in minutes)
 const RATE_LIMIT_MINUTES = parseInt(process.env.AUDIT_RATE_LIMIT_MINUTES || '5', 10)
 const rateLimitStore = new Map<string, number>()
 
-function ensureAuditsDir(): void {
-  if (!existsSync(AUDITS_DIR)) {
-    mkdirSync(AUDITS_DIR, { recursive: true })
-  }
-}
-
-function getPageAuditFile(pageId: string): string {
-  const safeId = pageId.replace(/[^a-zA-Z0-9-_]/g, '_')
-  return join(AUDITS_DIR, `${safeId}.json`)
-}
-
-function readPageAudits(pageId: string): PageAuditEntry[] {
-  ensureAuditsDir()
-  const file = getPageAuditFile(pageId)
-
-  if (!existsSync(file)) {
-    return []
-  }
-
-  try {
-    const content = readFileSync(file, 'utf-8')
-    return JSON.parse(content) as PageAuditEntry[]
-  } catch {
-    return []
-  }
-}
-
-function writePageAudits(pageId: string, entries: PageAuditEntry[]): void {
-  ensureAuditsDir()
-  const file = getPageAuditFile(pageId)
-  const json = JSON.stringify(entries, null, 2)
-  const tmpFile = file + '.tmp'
-  writeFileSync(tmpFile, json, 'utf-8')
-  renameSync(tmpFile, file)
-}
-
-function saveAudit(pageId: string, url: string, audit: AuditResult): PageAuditEntry {
-  const entries = readPageAudits(pageId)
+async function saveAudit(pageId: string, url: string, audit: AuditResult): Promise<PageAuditEntry> {
   const date = new Date().toISOString().split('T')[0]
+  const timestamp = new Date().toISOString()
 
-  const existingIndex = entries.findIndex(e => e.date === date)
+  if (audit.success && audit.scores) {
+    // Check if there's already an audit for this page today
+    const { data: existing } = await supabase
+      .from('audit_history')
+      .select('id')
+      .eq('page_id', pageId)
+      .gte('audited_at', `${date}T00:00:00`)
+      .lte('audited_at', `${date}T23:59:59`)
+      .limit(1)
 
-  const entry: PageAuditEntry = {
+    if (existing && existing.length > 0) {
+      // Update existing audit for today
+      await supabase
+        .from('audit_history')
+        .update({
+          performance_score: audit.scores.performance,
+          accessibility_score: audit.scores.accessibility,
+          best_practices_score: audit.scores.bestPractices,
+          seo_score: audit.scores.seo,
+          audited_at: timestamp,
+        })
+        .eq('id', existing[0].id)
+    } else {
+      // Insert new audit
+      await supabase.from('audit_history').insert({
+        page_id: pageId,
+        performance_score: audit.scores.performance,
+        accessibility_score: audit.scores.accessibility,
+        best_practices_score: audit.scores.bestPractices,
+        seo_score: audit.scores.seo,
+        audited_at: timestamp,
+      })
+    }
+
+    // Clean up old audits (keep only last 30 days)
+    const cutoffDate = new Date()
+    cutoffDate.setDate(cutoffDate.getDate() - 30)
+    await supabase
+      .from('audit_history')
+      .delete()
+      .eq('page_id', pageId)
+      .lt('audited_at', cutoffDate.toISOString())
+  }
+
+  return {
     pageId,
     url,
     date,
     audit,
   }
-
-  if (existingIndex !== -1) {
-    entries[existingIndex] = entry
-  } else {
-    entries.push(entry)
-  }
-
-  // Keep only last 30 days
-  const cutoffDate = new Date()
-  cutoffDate.setDate(cutoffDate.getDate() - 30)
-  const cutoffStr = cutoffDate.toISOString().split('T')[0]
-
-  const filtered = entries.filter(e => e.date >= cutoffStr)
-  writePageAudits(pageId, filtered)
-
-  return entry
 }
 
 function extractScore(data: Record<string, unknown>, category: string): number | null {
@@ -235,7 +223,7 @@ export async function POST(request: Request) {
     }
 
     const audit = await runPageSpeedAudit(url)
-    const entry = saveAudit(pageId, url, audit)
+    const entry = await saveAudit(pageId, url, audit)
 
     // Update rate limit timestamp
     rateLimitStore.set(pageId, Date.now())

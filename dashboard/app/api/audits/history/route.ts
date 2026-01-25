@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readFileSync, existsSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { supabase } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,19 +10,9 @@ interface AuditScores {
   seo: number | null
 }
 
-interface AuditEntry {
-  date: string
-  scores: AuditScores
-  success: boolean
-}
-
 interface AuditHistoryResponse {
   date: string
   scores: AuditScores
-}
-
-function sanitizePageId(pageId: string): string {
-  return pageId.replace(/[^a-zA-Z0-9\[\]_-]/g, '_')
 }
 
 export async function GET(request: NextRequest) {
@@ -34,34 +23,36 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'pageId is required' }, { status: 400 })
   }
 
-  const auditsDir = join(process.cwd(), '..', 'data', 'audits')
-
-  if (!existsSync(auditsDir)) {
-    return NextResponse.json([])
-  }
-
-  const sanitizedPageId = sanitizePageId(pageId)
-  const auditFile = join(auditsDir, `${sanitizedPageId}.json`)
-
-  if (!existsSync(auditFile)) {
-    return NextResponse.json([])
-  }
-
   try {
-    const content = readFileSync(auditFile, 'utf-8')
-    const audits: AuditEntry[] = JSON.parse(content)
+    // Get audits for the specified page, last 30 entries
+    const { data: audits, error } = await supabase
+      .from('audit_history')
+      .select('performance_score, accessibility_score, best_practices_score, seo_score, audited_at')
+      .eq('page_id', pageId)
+      .order('audited_at', { ascending: true })
+      .limit(30)
 
-    // Filter to successful audits with scores
-    const validAudits = audits
-      .filter(a => a.success && a.scores)
-      .map(a => ({
-        date: a.date,
-        scores: a.scores,
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date))
+    if (error) {
+      console.error('Error fetching audit history:', error)
+      return NextResponse.json([])
+    }
 
-    // Return last 30 days of audits
-    return NextResponse.json(validAudits.slice(-30))
+    if (!audits || audits.length === 0) {
+      return NextResponse.json([])
+    }
+
+    // Transform to expected format
+    const result: AuditHistoryResponse[] = audits.map((audit) => ({
+      date: audit.audited_at.split('T')[0],
+      scores: {
+        performance: audit.performance_score,
+        accessibility: audit.accessibility_score,
+        bestPractices: audit.best_practices_score,
+        seo: audit.seo_score,
+      },
+    }))
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Failed to read audit history:', error)
     return NextResponse.json([])
