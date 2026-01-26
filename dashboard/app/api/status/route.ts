@@ -104,6 +104,7 @@ export async function GET() {
         }
 
         return {
+          pageId: page.id,
           name: `[${page.client}] ${page.name}`,
           url: page.url,
           status: httpStatus,

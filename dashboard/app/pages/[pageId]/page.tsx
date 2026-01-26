@@ -24,6 +24,7 @@ type ErrorType = 'HTTP_404' | 'HTTP_500' | 'TIMEOUT' | 'SOFT_404' | 'CONNECTION_
 type StatusLabel = 'Online' | 'Offline' | 'Lento' | 'Soft 404'
 
 interface StatusEntry {
+  pageId: string
   name: string
   url: string
   status: number | null
@@ -251,7 +252,7 @@ export default function PageDetailPage() {
   // Get current status for this page
   const pageStatus = useMemo(() => {
     if (!page) return null
-    return status.find(s => s.name === `[${page.client}] ${page.name}`) || null
+    return status.find((s) => s.pageId === page.id) || null
   }, [page, status])
 
   // Get audit data for this page

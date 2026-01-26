@@ -8,6 +8,7 @@ type ErrorType = 'HTTP_404' | 'HTTP_500' | 'TIMEOUT' | 'SOFT_404' | 'CONNECTION_
 type StatusLabel = 'Online' | 'Offline' | 'Lento' | 'Soft 404'
 
 interface StatusEntry {
+  pageId: string
   name: string
   url: string
   status: number | null
@@ -143,7 +144,7 @@ export default function PageTable({
 
             const isUrgent = statusType === 'offline' || statusType === 'soft404'
             const isWarning = statusType === 'slow'
-            const pageId = `[${entry.client}] ${entry.name}`
+            const pageId = entry.id
             const auditScores = entry.audit?.audit?.scores
 
             return (

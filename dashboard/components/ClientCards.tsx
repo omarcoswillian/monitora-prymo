@@ -6,6 +6,7 @@ import { ChevronRight, AlertTriangle } from 'lucide-react'
 type StatusLabel = 'Online' | 'Offline' | 'Lento' | 'Soft 404'
 
 interface StatusEntry {
+  pageId: string
   name: string
   url: string
   statusLabel: StatusLabel
@@ -68,7 +69,7 @@ export default function ClientCards({
     if (!page.enabled) continue
 
     // Find status for this page
-    const pageStatus = status.find(s => s.name === `[${page.client}] ${page.name}`)
+    const pageStatus = status.find((s) => s.pageId === page.id)
 
     if (pageStatus) {
       switch (pageStatus.statusLabel) {

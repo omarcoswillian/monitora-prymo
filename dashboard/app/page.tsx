@@ -36,6 +36,7 @@ type ErrorType =
 type StatusLabel = "Online" | "Offline" | "Lento" | "Soft 404";
 
 interface StatusEntry {
+  pageId: string;
   name: string;
   url: string;
   status: number | null;
@@ -263,11 +264,11 @@ export default function Dashboard() {
     return clientNames.sort();
   }, [pages]);
 
-  // Merge status with pages data
+  // Merge status with pages data (match by pageId)
   const mergedData = useMemo(() => {
     return pages.map((page) => {
       const statusEntry = status.find(
-        (s) => s.name === `[${page.client}] ${page.name}`,
+        (s) => s.pageId === page.id,
       );
       const auditEntry = audits.latest[page.id];
       return {

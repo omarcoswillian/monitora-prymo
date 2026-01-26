@@ -3,6 +3,7 @@ import { getAllPages, createPage, validatePageInput } from '@/lib/supabase-pages
 import { checkAndRecord } from '@/lib/page-checker'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 30
 
 export async function GET() {
   try {
@@ -39,23 +40,33 @@ export async function POST(request: Request) {
       soft404Patterns: data.soft404Patterns,
     })
 
-    // Immediate check: don't wait for cron, check the page now
+    // Immediate check: run BEFORE responding so check_history exists when frontend refreshes
+    let firstCheck = null
     if (page.enabled) {
-      checkAndRecord({
-        id: page.id,
-        name: page.name,
-        clientName: page.client,
-        url: page.url,
-        timeout: page.timeout,
-        soft404Patterns: page.soft404Patterns,
-      }).then(result => {
-        console.log(`[Pages API] Immediate check for new page "${page.name}": ${result.statusLabel} ${result.responseTime}ms`)
-      }).catch(err => {
+      try {
+        const result = await checkAndRecord({
+          id: page.id,
+          name: page.name,
+          clientName: page.client,
+          url: page.url,
+          timeout: page.timeout,
+          soft404Patterns: page.soft404Patterns,
+        })
+        firstCheck = {
+          status: result.status,
+          responseTime: result.responseTime,
+          statusLabel: result.statusLabel,
+          error: result.error,
+          errorType: result.errorType,
+          success: result.success,
+        }
+        console.log(`[Pages API] Immediate check for "${page.name}": ${result.statusLabel} ${result.responseTime}ms`)
+      } catch (err) {
         console.error(`[Pages API] Immediate check failed for "${page.name}":`, err)
-      })
+      }
     }
 
-    return NextResponse.json(page, { status: 201 })
+    return NextResponse.json({ ...page, firstCheck }, { status: 201 })
   } catch (error) {
     console.error('Error creating page:', error)
     return NextResponse.json(

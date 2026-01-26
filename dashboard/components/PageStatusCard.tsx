@@ -6,6 +6,7 @@ type StatusLabel = 'Online' | 'Offline' | 'Lento' | 'Soft 404'
 type ErrorType = 'HTTP_404' | 'HTTP_500' | 'TIMEOUT' | 'SOFT_404' | 'CONNECTION_ERROR' | 'UNKNOWN'
 
 interface StatusEntry {
+  pageId: string
   name: string
   url: string
   status: number | null
