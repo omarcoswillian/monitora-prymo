@@ -10,6 +10,7 @@ export const maxDuration = 30
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const runTest = searchParams.get('test') === '1'
+  const checkMissing = searchParams.get('checkMissing') === '1'
 
   const diagnostics: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
@@ -24,6 +25,7 @@ export async function GET(request: Request) {
       id: p.id,
       name: p.name,
       client: p.client,
+      url: p.url,
       enabled: p.enabled,
     }))
 
@@ -185,6 +187,110 @@ export async function GET(request: Request) {
       }
 
       diagnostics.fullPipelineTest = steps
+    }
+
+    // 7. Raw table audit: list ALL page IDs directly from the pages table
+    const { data: rawAllPages, error: rawAllErr } = await supabase
+      .from('pages')
+      .select('id, name, client_id')
+      .order('name')
+
+    const rawPageIds = (rawAllPages || []).map((p: { id: string }) => p.id)
+    const getAllPagesIds = pages.map(p => p.id)
+
+    // Find discrepancies
+    const inGetAllButNotRaw = getAllPagesIds.filter(id => !rawPageIds.includes(id))
+    const inRawButNotGetAll = rawPageIds.filter(id => !getAllPagesIds.includes(id))
+
+    diagnostics.rawTableAudit = {
+      rawQueryError: rawAllErr?.message || null,
+      rawPageCount: rawAllPages?.length || 0,
+      rawPageIds: rawAllPages || [],
+      getAllPagesCount: pages.length,
+      getAllPagesIds,
+      discrepancy_inGetAllButNotRaw: inGetAllButNotRaw,
+      discrepancy_inRawButNotGetAll: inRawButNotGetAll,
+    }
+
+    // 8. Direct DB diagnostics for pages without check history
+    const pagesWithoutChecks = pages.filter(p => {
+      return p.enabled && !checkResults[p.id]
+    })
+    if (pagesWithoutChecks.length > 0) {
+      const dbDiag: Record<string, unknown> = {}
+      for (const page of pagesWithoutChecks) {
+        // Check if page exists in raw pages table
+        const { data: rawPage, error: rawErr } = await supabase
+          .from('pages')
+          .select('id, name, client_id')
+          .eq('id', page.id)
+          .limit(1)
+
+        dbDiag[page.id] = {
+          pageName: page.name,
+          pageIdFromGetAll: page.id,
+          pageIdLength: page.id.length,
+          existsInRawList: rawPageIds.includes(page.id),
+          rawPageFound: rawPage && rawPage.length > 0,
+          rawPageData: rawPage?.[0] || null,
+          rawPageError: rawErr?.message || null,
+        }
+      }
+      diagnostics.dbDiagnostics = dbDiag
+    }
+
+    // 8. Check all pages without recent check history (?checkMissing=1)
+    if (checkMissing) {
+      const missingResults: Record<string, unknown> = {}
+      for (const page of pages) {
+        if (!page.enabled) continue
+        const latest = await getLatestCheck(page.id)
+        if (latest) continue // already has check data
+
+        try {
+          const result = await checkPage({
+            id: page.id,
+            name: page.name,
+            clientName: page.client,
+            url: page.url,
+            timeout: page.timeout,
+            soft404Patterns: page.soft404Patterns || undefined,
+          })
+
+          // Write check history and capture any errors
+          const { error: writeErr } = await supabase.from('check_history').insert({
+            page_id: result.pageId,
+            status: result.status ?? 0,
+            response_time: result.responseTime,
+            error: result.error || null,
+            checked_at: new Date().toISOString(),
+          })
+
+          await trackIncident(result)
+
+          // Verify the write by reading back
+          const verify = await getLatestCheck(page.id)
+
+          missingResults[page.id] = {
+            page: page.name,
+            checkStatus: result.status,
+            responseTime: result.responseTime,
+            statusLabel: result.statusLabel,
+            success: result.success,
+            checkError: result.error,
+            writeError: writeErr?.message || null,
+            writeCode: writeErr?.code || null,
+            verifyFound: verify !== null,
+            verifyCheckedAt: verify?.checkedAt || null,
+          }
+        } catch (e) {
+          missingResults[page.id] = {
+            page: page.name,
+            fatalError: e instanceof Error ? e.message : 'Unknown',
+          }
+        }
+      }
+      diagnostics.checkMissingResults = missingResults
     }
 
   } catch (err) {
