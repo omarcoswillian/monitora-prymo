@@ -63,13 +63,19 @@ export async function runPageSpeedAudit(url: string): Promise<AuditResult> {
   const requestUrl = `${PAGESPEED_API_URL}?${params.toString()}`
 
   try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 25000)
+
     const response = await fetch(requestUrl, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
       },
       cache: 'no-store',
+      signal: controller.signal,
     })
+
+    clearTimeout(timeout)
 
     if (!response.ok) {
       const errorText = await response.text()

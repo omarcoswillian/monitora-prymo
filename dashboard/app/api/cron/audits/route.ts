@@ -5,7 +5,7 @@ import { runPageSpeedAudit, saveAudit } from '@/lib/pagespeed'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-const MAX_AUDITS_PER_RUN = 3
+const MAX_AUDITS_PER_RUN = 2
 const DELAY_BETWEEN_AUDITS_MS = 2000
 
 function delay(ms: number): Promise<void> {
