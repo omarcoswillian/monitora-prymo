@@ -76,7 +76,17 @@ export async function GET(request: Request) {
 
     for (const entry of recentEntries) {
       const date = new Date(entry.checked_at)
-      const hourKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:00`
+      const parts = new Intl.DateTimeFormat('sv-SE', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit',
+        hour12: false,
+      }).formatToParts(date)
+      const y = parts.find(p => p.type === 'year')!.value
+      const m = parts.find(p => p.type === 'month')!.value
+      const d = parts.find(p => p.type === 'day')!.value
+      const h = parts.find(p => p.type === 'hour')!.value
+      const hourKey = `${y}-${m}-${d} ${h}:00`
 
       const existing = hourlyData.get(hourKey) || { total: 0, count: 0 }
       existing.total += entry.response_time
@@ -96,7 +106,7 @@ export async function GET(request: Request) {
 
     for (const entry of checks) {
       const date = new Date(entry.checked_at)
-      const dayKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+      const dayKey = date.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })
 
       const existing = dailyData.get(dayKey) || { success: 0, total: 0 }
       existing.total += 1
