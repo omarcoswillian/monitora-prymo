@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAllPages, createPage, validatePageInput } from '@/lib/supabase-pages-store'
+import { checkAndRecord } from '@/lib/page-checker'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,6 +38,22 @@ export async function POST(request: Request) {
       enabled: data.enabled,
       soft404Patterns: data.soft404Patterns,
     })
+
+    // Immediate check: don't wait for cron, check the page now
+    if (page.enabled) {
+      checkAndRecord({
+        id: page.id,
+        name: page.name,
+        clientName: page.client,
+        url: page.url,
+        timeout: page.timeout,
+        soft404Patterns: page.soft404Patterns,
+      }).then(result => {
+        console.log(`[Pages API] Immediate check for new page "${page.name}": ${result.statusLabel} ${result.responseTime}ms`)
+      }).catch(err => {
+        console.error(`[Pages API] Immediate check failed for "${page.name}":`, err)
+      })
+    }
 
     return NextResponse.json(page, { status: 201 })
   } catch (error) {

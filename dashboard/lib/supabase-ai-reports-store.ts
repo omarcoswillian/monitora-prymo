@@ -56,6 +56,12 @@ async function loadClientNames(): Promise<Map<string, string>> {
   return clientNameCache
 }
 
+function toDateOnly(val: string): string {
+  // Normalize TIMESTAMPTZ (e.g. "2025-01-18T00:00:00+00:00") to date-only "2025-01-18"
+  if (val && val.includes('T')) return val.split('T')[0]
+  return val
+}
+
 function dbToReport(row: DbAIReport, clientNames: Map<string, string>): AIReport {
   // JSONB is automatically parsed by Supabase client
   const data: ClientReportData | GlobalReportData = row.data || ({} as ClientReportData)
@@ -65,8 +71,8 @@ function dbToReport(row: DbAIReport, clientNames: Map<string, string>): AIReport
     type: row.report_type as 'client' | 'global',
     clientName: row.client_id ? (clientNames.get(row.client_id) || null) : null,
     period: {
-      start: row.period_start,
-      end: row.period_end,
+      start: toDateOnly(row.period_start),
+      end: toDateOnly(row.period_end),
     },
     content: row.content,
     data,

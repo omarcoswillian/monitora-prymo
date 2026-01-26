@@ -287,15 +287,11 @@ export default function ReportsPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [legacyRes, aiRes, clientsRes] = await Promise.all([
-        fetch('/api/reports'),
-        fetch('/api/reports/ai'),
-        fetch('/api/reports/generate-ai'),
+      const [legacyJson, aiJson, clientsJson] = await Promise.all([
+        fetch('/api/reports').then(r => r.json()).catch(() => ({ reports: [] })),
+        fetch('/api/reports/ai').then(r => r.json()).catch(() => ({ reports: [] })),
+        fetch('/api/reports/generate-ai').then(r => r.json()).catch(() => ({ clients: [], aiAvailable: false })),
       ])
-
-      const legacyJson = await legacyRes.json()
-      const aiJson = await aiRes.json()
-      const clientsJson = await clientsRes.json()
 
       setLegacyReports(legacyJson.reports || [])
       setAIReports(aiJson.reports || [])
