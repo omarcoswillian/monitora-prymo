@@ -74,28 +74,32 @@ async function shouldRunCleanup(): Promise<boolean> {
 }
 
 async function markCleanupDone(): Promise<void> {
-  await supabase
+  const { error } = await supabase
     .from('settings')
     .upsert(
       { key: 'last_cleanup_at', value: JSON.stringify(new Date().toISOString()), updated_at: new Date().toISOString() },
       { onConflict: 'key' }
     )
+
+  if (error) {
+    console.error('[Cron Uptime] Failed to mark cleanup done:', error.message)
+  }
 }
 
 async function saveCronExecution(summary: Record<string, unknown>): Promise<void> {
-  try {
-    await supabase
-      .from('settings')
-      .upsert(
-        {
-          key: 'last_cron_execution',
-          value: JSON.stringify(summary),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'key' }
-      )
-  } catch (err) {
-    console.error('[Cron Uptime] Failed to save cron execution metadata:', err)
+  const { error } = await supabase
+    .from('settings')
+    .upsert(
+      {
+        key: 'last_cron_execution',
+        value: JSON.stringify(summary),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'key' }
+    )
+
+  if (error) {
+    console.error('[Cron Uptime] Failed to save cron execution metadata:', error.message)
   }
 }
 
