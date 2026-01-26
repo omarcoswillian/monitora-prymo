@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { ResponseTimeChart, UptimeChart } from "@/components/Charts";
 import PageFormModal from "@/components/PageFormModal";
@@ -270,6 +270,44 @@ export default function Dashboard() {
       clearInterval(auditsInterval);
     };
   }, [fetchStatus, fetchPages, fetchClients, fetchHistory, fetchAudits, fetchSettings]);
+
+  // Auto-trigger audits for pages without scores (runs once after load)
+  const autoAuditTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (loading || autoAuditTriggeredRef.current) return;
+
+    const pagesWithoutAudit = pages.filter(
+      (p) => p.enabled && !audits.latest[p.id],
+    );
+
+    if (pagesWithoutAudit.length === 0) return;
+
+    autoAuditTriggeredRef.current = true;
+
+    const triggerPendingAudits = async () => {
+      for (const page of pagesWithoutAudit) {
+        setPendingAudits((prev) => new Set(prev).add(page.id));
+        try {
+          await fetch("/api/audits/run", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pageId: page.id, url: page.url }),
+          });
+        } catch {
+          // ignore individual failures
+        } finally {
+          setPendingAudits((prev) => {
+            const next = new Set(prev);
+            next.delete(page.id);
+            return next;
+          });
+          await fetchAudits();
+        }
+      }
+    };
+
+    triggerPendingAudits();
+  }, [loading, pages, audits.latest, fetchAudits]);
 
   // Unique clients from pages for dropdown
   const uniqueClients = useMemo(() => {
