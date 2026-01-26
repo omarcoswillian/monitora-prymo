@@ -42,10 +42,15 @@ function extractScore(data: Record<string, unknown>, category: string): number |
   }
 }
 
-export async function runPageSpeedAudit(url: string): Promise<AuditResult> {
+export interface AuditOptions {
+  strategy?: 'mobile' | 'desktop'
+  categories?: string[]
+}
+
+export async function runPageSpeedAudit(url: string, options?: AuditOptions): Promise<AuditResult> {
   const apiKey = process.env.PAGESPEED_API_KEY
-  const strategy = 'mobile'
-  const categories = ['performance', 'accessibility', 'best-practices', 'seo']
+  const strategy = options?.strategy || 'mobile'
+  const categories = options?.categories || ['performance', 'accessibility', 'best-practices', 'seo']
 
   const params = new URLSearchParams({
     url,

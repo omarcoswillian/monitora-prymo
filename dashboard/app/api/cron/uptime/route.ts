@@ -7,6 +7,7 @@ import {
   loadOpenIncidents,
 } from '@/lib/page-checker'
 import type { PageToCheck } from '@/lib/page-checker'
+import { getSettings } from '@/lib/supabase-settings-store'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -140,11 +141,14 @@ export async function GET(request: Request) {
   console.log('[Cron Uptime] Starting uptime check...')
 
   try {
-    // 3. Load pages and open incidents concurrently
-    const [pages, openIncidents] = await Promise.all([
+    // 3. Load pages, open incidents, and settings concurrently
+    const [pages, openIncidents, settings] = await Promise.all([
       loadEnabledPages(),
       loadOpenIncidents(),
+      getSettings(),
     ])
+    const slowThreshold = settings.monitoring.slowThreshold
+    console.log(`[Cron Uptime] Settings loaded: slowThreshold=${slowThreshold}ms`)
 
     if (pages.length === 0) {
       console.log('[Cron Uptime] No enabled pages found')
@@ -161,9 +165,9 @@ export async function GET(request: Request) {
 
     console.log(`[Cron Uptime] Checking ${pages.length} page(s), ${openIncidents.size} open incident(s)`)
 
-    // 4. Check all pages concurrently
+    // 4. Check all pages concurrently (using configured slowThreshold)
     const results = await Promise.allSettled(
-      pages.map(page => checkPage(page))
+      pages.map(page => checkPage(page, slowThreshold))
     )
 
     // 5. Process results: write history + track incidents

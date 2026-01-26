@@ -28,7 +28,7 @@ export interface CheckResult {
 
 // ===== CONSTANTS =====
 
-export const SLOW_THRESHOLD_MS = 1500
+export const DEFAULT_SLOW_THRESHOLD_MS = 1500
 const MAX_BODY_SIZE = 50000
 
 const DEFAULT_SOFT_404_PATTERNS = [
@@ -93,17 +93,18 @@ function determineStatusLabel(
   success: boolean,
   status: number | null,
   responseTime: number,
-  isSoft404: boolean
+  isSoft404: boolean,
+  slowThreshold: number = DEFAULT_SLOW_THRESHOLD_MS
 ): StatusLabel {
   if (isSoft404) return 'Soft 404'
   if (!success || status === null || status >= 400) return 'Offline'
-  if (responseTime > SLOW_THRESHOLD_MS) return 'Lento'
+  if (responseTime > slowThreshold) return 'Lento'
   return 'Online'
 }
 
 // ===== PAGE CHECKER =====
 
-export async function checkPage(page: PageToCheck): Promise<CheckResult> {
+export async function checkPage(page: PageToCheck, slowThreshold?: number): Promise<CheckResult> {
   const startTime = Date.now()
 
   try {
@@ -134,7 +135,7 @@ export async function checkPage(page: PageToCheck): Promise<CheckResult> {
     }
 
     const success = response.ok && !isSoft404
-    const statusLabel = determineStatusLabel(success, httpStatus, responseTime, isSoft404)
+    const statusLabel = determineStatusLabel(success, httpStatus, responseTime, isSoft404, slowThreshold)
     const errorType = determineErrorType(httpStatus, undefined, isSoft404)
 
     return {
@@ -157,7 +158,7 @@ export async function checkPage(page: PageToCheck): Promise<CheckResult> {
         : 'Unknown error'
 
     const errorType = determineErrorType(null, errorMessage, false)
-    const statusLabel = determineStatusLabel(false, null, responseTime, false)
+    const statusLabel = determineStatusLabel(false, null, responseTime, false, slowThreshold)
 
     return {
       pageId: page.id,
@@ -293,8 +294,8 @@ export async function loadOpenIncidents(): Promise<Map<string, string>> {
  * Run a complete check for a single page: fetch → write history → track incident.
  * Returns the check result.
  */
-export async function checkAndRecord(page: PageToCheck): Promise<CheckResult> {
-  const result = await checkPage(page)
+export async function checkAndRecord(page: PageToCheck, slowThreshold?: number): Promise<CheckResult> {
+  const result = await checkPage(page, slowThreshold)
   await writeCheckHistory(result)
   await trackIncident(result)
   return result

@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getAllPages } from '@/lib/supabase-pages-store'
 import { getLatestCheck } from '@/lib/supabase-history-store'
-import { SLOW_THRESHOLD_MS } from '@/lib/page-checker'
+import { getSettings } from '@/lib/supabase-settings-store'
+import { DEFAULT_SLOW_THRESHOLD_MS } from '@/lib/page-checker'
 import type { StatusLabel, ErrorType } from '@/lib/page-checker'
 
 export const dynamic = 'force-dynamic'
@@ -10,9 +11,10 @@ export const dynamic = 'force-dynamic'
 function determineStatusLabel(
   status: number | null,
   responseTime: number,
+  slowThreshold: number = DEFAULT_SLOW_THRESHOLD_MS,
 ): StatusLabel {
   if (status === null || status >= 400) return 'Offline'
-  if (responseTime > SLOW_THRESHOLD_MS) return 'Lento'
+  if (responseTime > slowThreshold) return 'Lento'
   return 'Online'
 }
 
@@ -51,6 +53,9 @@ function determineErrorType(
 
 export async function GET() {
   try {
+    const settings = await getSettings()
+    const slowThreshold = settings.monitoring.slowThreshold
+
     const pages = await getAllPages()
     const enabledPages = pages.filter(p => p.enabled)
 
@@ -93,7 +98,7 @@ export async function GET() {
           success = false
         } else if (latestCheck) {
           // No open incident - derive from latest check
-          statusLabel = determineStatusLabel(httpStatus, responseTime)
+          statusLabel = determineStatusLabel(httpStatus, responseTime, slowThreshold)
           success = httpStatus !== null && httpStatus >= 200 && httpStatus < 400 && statusLabel === 'Online'
           errorType = !success ? determineErrorType(httpStatus, error || null) : undefined
         } else {

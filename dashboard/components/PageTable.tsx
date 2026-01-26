@@ -63,9 +63,10 @@ interface PageTableProps {
   runningAudit?: string | null
   deleting?: string | null
   apiKeyConfigured?: boolean
+  slowThreshold?: number
 }
 
-const SLOW_THRESHOLD = 1500
+const DEFAULT_SLOW_THRESHOLD = 1500
 
 const ERROR_TYPE_LABELS: Record<ErrorType, { label: string; tooltip: string }> = {
   HTTP_404: { label: '404', tooltip: 'Pagina nao encontrada (HTTP 404)' },
@@ -108,6 +109,7 @@ export default function PageTable({
   runningAudit,
   deleting,
   apiKeyConfigured = false,
+  slowThreshold = DEFAULT_SLOW_THRESHOLD,
 }: PageTableProps) {
   if (pages.length === 0) {
     return (
@@ -203,7 +205,7 @@ export default function PageTable({
                   </span>
                 </td>
                 <td>
-                  <span className={`time ${entry.status && entry.status.responseTime > SLOW_THRESHOLD ? 'time-slow' : ''}`}>
+                  <span className={`time ${entry.status && entry.status.responseTime > slowThreshold ? 'time-slow' : ''}`}>
                     {entry.status ? `${entry.status.responseTime}ms` : '-'}
                   </span>
                 </td>

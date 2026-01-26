@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { runPageSpeedAudit, saveAudit } from '@/lib/pagespeed'
+import type { AuditOptions } from '@/lib/pagespeed'
+import { getSettings } from '@/lib/supabase-settings-store'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -86,7 +88,38 @@ export async function GET(request: Request) {
   console.log('[Cron Audits] Starting audit check...')
 
   try {
-    // 3. Find pages that need auditing
+    // 3. Load audit settings
+    const settings = await getSettings()
+    const auditSettings = settings.audit
+
+    // If frequency is 'manual', skip cron execution
+    if (auditSettings.frequency === 'manual') {
+      console.log('[Cron Audits] Frequency set to manual, skipping')
+      return NextResponse.json({
+        success: true,
+        message: 'Audit frequency set to manual, skipping cron',
+        audited: 0,
+        pending: 0,
+        timestamp: new Date().toISOString(),
+        duration: `${Date.now() - startTime}ms`,
+      })
+    }
+
+    // Build audit options from settings
+    const enabledCategories: string[] = []
+    if (auditSettings.metrics.performance) enabledCategories.push('performance')
+    if (auditSettings.metrics.accessibility) enabledCategories.push('accessibility')
+    if (auditSettings.metrics.bestPractices) enabledCategories.push('best-practices')
+    if (auditSettings.metrics.seo) enabledCategories.push('seo')
+
+    const auditOptions: AuditOptions = {
+      strategy: auditSettings.analysisType === 'desktop' ? 'desktop' : 'mobile',
+      categories: enabledCategories.length > 0 ? enabledCategories : undefined,
+    }
+
+    console.log(`[Cron Audits] Settings: strategy=${auditOptions.strategy}, categories=${enabledCategories.join(',')}`)
+
+    // 4. Find pages that need auditing
     const pagesNeedingAudit = await loadPagesNeedingAudit()
 
     if (pagesNeedingAudit.length === 0) {
@@ -102,7 +135,7 @@ export async function GET(request: Request) {
       return NextResponse.json(summary)
     }
 
-    // 4. Audit up to MAX_AUDITS_PER_RUN pages sequentially
+    // 5. Audit up to MAX_AUDITS_PER_RUN pages sequentially
     const toAudit = pagesNeedingAudit.slice(0, MAX_AUDITS_PER_RUN)
     let successCount = 0
     let failCount = 0
@@ -113,7 +146,7 @@ export async function GET(request: Request) {
       const page = toAudit[i]
 
       try {
-        const audit = await runPageSpeedAudit(page.url)
+        const audit = await runPageSpeedAudit(page.url, auditOptions)
         await saveAudit(page.id, page.url, audit)
 
         if (audit.success) {

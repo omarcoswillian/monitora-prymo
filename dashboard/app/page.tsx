@@ -109,7 +109,7 @@ interface AuditData {
 
 type Filter = "all" | "online" | "offline" | "slow" | "soft404";
 
-const SLOW_THRESHOLD = 1500;
+const DEFAULT_SLOW_THRESHOLD = 1500;
 
 const ERROR_TYPE_LABELS: Record<ErrorType, { label: string; tooltip: string }> =
   {
@@ -175,6 +175,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [runningAudit, setRunningAudit] = useState<string | null>(null);
+  const [slowThreshold, setSlowThreshold] = useState(DEFAULT_SLOW_THRESHOLD);
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -231,6 +232,18 @@ export default function Dashboard() {
     }
   }, []);
 
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings");
+      const json = await res.json();
+      if (json.monitoring?.slowThreshold) {
+        setSlowThreshold(json.monitoring.slowThreshold);
+      }
+    } catch {
+      console.error("Failed to fetch settings");
+    }
+  }, []);
+
   useEffect(() => {
     const init = async () => {
       await Promise.all([
@@ -239,6 +252,7 @@ export default function Dashboard() {
         fetchClients(),
         fetchHistory(),
         fetchAudits(),
+        fetchSettings(),
       ]);
       setLoading(false);
     };
@@ -254,7 +268,7 @@ export default function Dashboard() {
       clearInterval(historyInterval);
       clearInterval(auditsInterval);
     };
-  }, [fetchStatus, fetchPages, fetchClients, fetchHistory, fetchAudits]);
+  }, [fetchStatus, fetchPages, fetchClients, fetchHistory, fetchAudits, fetchSettings]);
 
   // Unique clients from pages for dropdown
   const uniqueClients = useMemo(() => {
@@ -456,7 +470,7 @@ export default function Dashboard() {
             <div className="card-icon">
               <Clock size={20} />
             </div>
-            <div className="card-label">Lento (&gt;{SLOW_THRESHOLD}ms)</div>
+            <div className="card-label">Lento (&gt;{slowThreshold}ms)</div>
             <div className="card-value slow">{counts.slow}</div>
           </div>
           <div
@@ -634,7 +648,7 @@ export default function Dashboard() {
                       </td>
                       <td>
                         <span
-                          className={`time ${entry.status && entry.status.responseTime > SLOW_THRESHOLD ? "time-slow" : ""}`}
+                          className={`time ${entry.status && entry.status.responseTime > slowThreshold ? "time-slow" : ""}`}
                         >
                           {entry.status
                             ? `${entry.status.responseTime}ms`
