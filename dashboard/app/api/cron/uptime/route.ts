@@ -12,6 +12,7 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 const HISTORY_RETENTION_DAYS = 30
+const CLEANUP_INTERVAL_HOURS = 1
 
 // ===== SUPABASE OPERATIONS =====
 
@@ -52,6 +53,50 @@ async function cleanupOldHistory(): Promise<number> {
   }
 
   return data?.length || 0
+}
+
+async function shouldRunCleanup(): Promise<boolean> {
+  try {
+    const { data } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'last_cleanup_at')
+      .single()
+
+    if (!data) return true
+
+    const lastCleanup = new Date(JSON.parse(data.value))
+    const hoursSince = (Date.now() - lastCleanup.getTime()) / (1000 * 60 * 60)
+    return hoursSince >= CLEANUP_INTERVAL_HOURS
+  } catch {
+    return true
+  }
+}
+
+async function markCleanupDone(): Promise<void> {
+  await supabase
+    .from('settings')
+    .upsert(
+      { key: 'last_cleanup_at', value: JSON.stringify(new Date().toISOString()), updated_at: new Date().toISOString() },
+      { onConflict: 'key' }
+    )
+}
+
+async function saveCronExecution(summary: Record<string, unknown>): Promise<void> {
+  try {
+    await supabase
+      .from('settings')
+      .upsert(
+        {
+          key: 'last_cron_execution',
+          value: JSON.stringify(summary),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'key' }
+      )
+  } catch (err) {
+    console.error('[Cron Uptime] Failed to save cron execution metadata:', err)
+  }
 }
 
 // ===== CRON HANDLER =====
@@ -99,12 +144,15 @@ export async function GET(request: Request) {
 
     if (pages.length === 0) {
       console.log('[Cron Uptime] No enabled pages found')
-      return NextResponse.json({
+      const summary = {
         success: true,
         message: 'No enabled pages to check',
         pagesChecked: 0,
-        duration: Date.now() - startTime,
-      })
+        timestamp: new Date().toISOString(),
+        duration: `${Date.now() - startTime}ms`,
+      }
+      await saveCronExecution(summary)
+      return NextResponse.json(summary)
     }
 
     console.log(`[Cron Uptime] Checking ${pages.length} page(s), ${openIncidents.size} open incident(s)`)
@@ -146,10 +194,14 @@ export async function GET(request: Request) {
       }
     }
 
-    // 6. Cleanup old history
-    const cleaned = await cleanupOldHistory()
-    if (cleaned > 0) {
-      console.log(`[Cron Uptime] Cleaned ${cleaned} old check_history entries`)
+    // 6. Cleanup old history (only once per hour, not every 5 minutes)
+    let cleaned = 0
+    if (await shouldRunCleanup()) {
+      cleaned = await cleanupOldHistory()
+      await markCleanupDone()
+      if (cleaned > 0) {
+        console.log(`[Cron Uptime] Cleaned ${cleaned} old check_history entries`)
+      }
     }
 
     const duration = Date.now() - startTime
@@ -167,6 +219,9 @@ export async function GET(request: Request) {
       duration: `${duration}ms`,
     }
 
+    // Save execution metadata for visibility
+    await saveCronExecution(summary)
+
     console.log(`[Cron Uptime] Completed in ${duration}ms: ${successCount} OK, ${failCount} FAIL, ${incidentsCreated} new incidents, ${incidentsResolved} resolved`)
 
     return NextResponse.json(summary)
@@ -174,13 +229,15 @@ export async function GET(request: Request) {
     const message = error instanceof Error ? error.message : 'Unknown error'
     console.error(`[Cron Uptime] Fatal error: ${message}`)
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: message,
-        duration: `${Date.now() - startTime}ms`,
-      },
-      { status: 500 }
-    )
+    const errorSummary = {
+      success: false,
+      error: message,
+      timestamp: new Date().toISOString(),
+      duration: `${Date.now() - startTime}ms`,
+    }
+
+    await saveCronExecution(errorSummary)
+
+    return NextResponse.json(errorSummary, { status: 500 })
   }
 }
