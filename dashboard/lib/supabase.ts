@@ -17,7 +17,14 @@ if (typeof window === 'undefined') {
 let supabase: SupabaseClient
 
 if (supabaseUrl && supabaseAnonKey) {
-  supabase = createClient(supabaseUrl, supabaseAnonKey)
+  supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      // Disable Next.js fetch cache to ensure fresh data on every query
+      fetch: (url, options = {}) => {
+        return fetch(url, { ...options, cache: 'no-store' })
+      },
+    },
+  })
 } else {
   // Create a placeholder that returns empty results instead of crashing
   // This allows the app to boot and show a proper error message
