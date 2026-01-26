@@ -370,10 +370,21 @@ export default function Dashboard() {
     setModalOpen(true);
   };
 
-  const handleModalSuccess = () => {
+  const handleModalSuccess = (page?: { id: string; url: string; enabled: boolean }) => {
     fetchPages();
     fetchStatus();
     fetchClients();
+
+    // Auto-trigger PageSpeed audit for newly created pages
+    if (page && page.enabled && audits.apiKeyConfigured) {
+      fetch("/api/audits/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageId: page.id, url: page.url }),
+      })
+        .then(() => fetchAudits())
+        .catch(() => console.error("Auto-audit failed for new page"));
+    }
   };
 
   if (loading) {

@@ -12,12 +12,18 @@ interface PageFormData {
   enabled: boolean
 }
 
+interface CreatedPage {
+  id: string
+  url: string
+  enabled: boolean
+}
+
 interface PageFormModalProps {
   mode: 'create' | 'edit'
   pageId?: string
   isOpen: boolean
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (page?: CreatedPage) => void
 }
 
 const defaultData: PageFormData = {
@@ -90,7 +96,7 @@ export default function PageFormModal({
         return
       }
 
-      onSuccess()
+      onSuccess({ id: result.id, url: result.url, enabled: result.enabled })
       onClose()
     } catch {
       setErrors(['Failed to save page'])
