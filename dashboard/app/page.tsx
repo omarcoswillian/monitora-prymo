@@ -175,6 +175,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [runningAudit, setRunningAudit] = useState<string | null>(null);
+  const [pendingAudits, setPendingAudits] = useState<Set<string>>(new Set());
   const [slowThreshold, setSlowThreshold] = useState(DEFAULT_SLOW_THRESHOLD);
 
   // Modal state
@@ -349,14 +350,8 @@ export default function Dashboard() {
   };
 
   const handleRunAudit = async (page: PageEntry) => {
-    if (!audits.apiKeyConfigured) {
-      alert(
-        "API key do PageSpeed nao configurada. Adicione PAGESPEED_API_KEY ao .env",
-      );
-      return;
-    }
-
     setRunningAudit(page.id);
+    setPendingAudits((prev) => new Set(prev).add(page.id));
 
     try {
       await fetch("/api/audits/run", {
@@ -369,6 +364,11 @@ export default function Dashboard() {
       console.error("Failed to run audit");
     } finally {
       setRunningAudit(null);
+      setPendingAudits((prev) => {
+        const next = new Set(prev);
+        next.delete(page.id);
+        return next;
+      });
     }
   };
 
@@ -388,16 +388,26 @@ export default function Dashboard() {
     fetchPages();
     fetchStatus();
     fetchClients();
+    fetchAudits();
 
     // Auto-trigger PageSpeed audit for newly created pages
-    if (page && page.enabled && audits.apiKeyConfigured) {
+    if (page && page.enabled) {
+      setPendingAudits((prev) => new Set(prev).add(page.id));
+
       fetch("/api/audits/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pageId: page.id, url: page.url }),
       })
         .then(() => fetchAudits())
-        .catch(() => console.error("Auto-audit failed for new page"));
+        .catch(() => console.error("Auto-audit failed for new page"))
+        .finally(() => {
+          setPendingAudits((prev) => {
+            const next = new Set(prev);
+            next.delete(page.id);
+            return next;
+          });
+        });
     }
   };
 
@@ -706,6 +716,10 @@ export default function Dashboard() {
                               </div>
                             </div>
                           </div>
+                        ) : pendingAudits.has(entry.id) || runningAudit === entry.id ? (
+                          <span className="badge badge-collecting">Coletando...</span>
+                        ) : entry.enabled ? (
+                          <span className="badge pending">Pendente</span>
                         ) : (
                           <span className="score-badge score-na">-</span>
                         )}

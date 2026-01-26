@@ -61,6 +61,7 @@ interface PageTableProps {
   onDelete?: (page: MergedPageEntry) => void
   onRunAudit?: (page: MergedPageEntry) => void
   runningAudit?: string | null
+  pendingAudits?: Set<string>
   deleting?: string | null
   apiKeyConfigured?: boolean
   slowThreshold?: number
@@ -107,6 +108,7 @@ export default function PageTable({
   onDelete,
   onRunAudit,
   runningAudit,
+  pendingAudits,
   deleting,
   apiKeyConfigured = false,
   slowThreshold = DEFAULT_SLOW_THRESHOLD,
@@ -237,6 +239,10 @@ export default function PageTable({
                         </div>
                       </div>
                     </div>
+                  ) : (pendingAudits?.has(pageId) || runningAudit === pageId) ? (
+                    <span className="badge badge-collecting">Coletando...</span>
+                  ) : entry.enabled ? (
+                    <span className="badge pending">Pendente</span>
                   ) : (
                     <span className="score-badge score-na">-</span>
                   )}

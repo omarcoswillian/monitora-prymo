@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getAllPages, createPage, validatePageInput } from '@/lib/supabase-pages-store'
 import { checkAndRecord } from '@/lib/page-checker'
-import { runPageSpeedAudit, saveAudit } from '@/lib/pagespeed'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+export const maxDuration = 30
 
 export async function GET() {
   try {
@@ -67,24 +66,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Trigger PageSpeed audit server-side (don't block response on failure)
-    let firstAudit = null
-    if (page.enabled) {
-      try {
-        const audit = await runPageSpeedAudit(page.url)
-        await saveAudit(page.id, page.url, audit)
-        if (audit.success) {
-          firstAudit = audit.scores
-          console.log(`[Pages API] Audit for "${page.name}": ${JSON.stringify(audit.scores)}`)
-        } else {
-          console.log(`[Pages API] Audit failed for "${page.name}": ${audit.error}`)
-        }
-      } catch (err) {
-        console.error(`[Pages API] Audit error for "${page.name}":`, err)
-      }
-    }
-
-    return NextResponse.json({ ...page, firstCheck, firstAudit }, { status: 201 })
+    return NextResponse.json({ ...page, firstCheck }, { status: 201 })
   } catch (error) {
     console.error('Error creating page:', error)
     return NextResponse.json(
