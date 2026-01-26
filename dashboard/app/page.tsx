@@ -284,25 +284,42 @@ export default function Dashboard() {
 
     autoAuditTriggeredRef.current = true;
 
+    const BATCH_SIZE = 3;
+
     const triggerPendingAudits = async () => {
-      for (const page of pagesWithoutAudit) {
-        setPendingAudits((prev) => new Set(prev).add(page.id));
-        try {
-          await fetch("/api/audits/run", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ pageId: page.id, url: page.url }),
-          });
-        } catch {
-          // ignore individual failures
-        } finally {
-          setPendingAudits((prev) => {
-            const next = new Set(prev);
-            next.delete(page.id);
-            return next;
-          });
-          await fetchAudits();
-        }
+      for (let i = 0; i < pagesWithoutAudit.length; i += BATCH_SIZE) {
+        const batch = pagesWithoutAudit.slice(i, i + BATCH_SIZE);
+
+        // Mark entire batch as collecting
+        setPendingAudits((prev) => {
+          const next = new Set(prev);
+          batch.forEach((p) => next.add(p.id));
+          return next;
+        });
+
+        // Run batch in parallel
+        await Promise.allSettled(
+          batch.map(async (page) => {
+            try {
+              await fetch("/api/audits/run", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pageId: page.id, url: page.url }),
+              });
+            } catch {
+              // ignore
+            } finally {
+              setPendingAudits((prev) => {
+                const next = new Set(prev);
+                next.delete(page.id);
+                return next;
+              });
+            }
+          }),
+        );
+
+        // Refresh scores after each batch completes
+        await fetchAudits();
       }
     };
 
