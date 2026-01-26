@@ -189,27 +189,58 @@ export async function GET(request: Request) {
       diagnostics.fullPipelineTest = steps
     }
 
-    // 7. Raw table audit: list ALL page IDs directly from the pages table
-    const { data: rawAllPages, error: rawAllErr } = await supabase
+    // 7. Raw table audit: compare different SELECT methods
+    // 7a. Raw select with specific columns (NO join)
+    const { data: rawSpecific, error: rawSpecificErr } = await supabase
       .from('pages')
       .select('id, name, client_id')
       .order('name')
 
-    const rawPageIds = (rawAllPages || []).map((p: { id: string }) => p.id)
+    // 7b. Raw select with * (NO join)
+    const { data: rawStar, error: rawStarErr } = await supabase
+      .from('pages')
+      .select('*')
+      .order('name')
+
+    // 7c. getAllPages uses select('*, clients(name)') — already done above as `pages`
+
+    // 7d. List all clients
+    const { data: allClients, error: clientsErr } = await supabase
+      .from('clients')
+      .select('id, name')
+      .order('name')
+
+    const rawSpecificIds = (rawSpecific || []).map((p: { id: string }) => p.id)
+    const rawStarIds = (rawStar || []).map((p: { id: string }) => p.id)
     const getAllPagesIds = pages.map(p => p.id)
 
     // Find discrepancies
-    const inGetAllButNotRaw = getAllPagesIds.filter(id => !rawPageIds.includes(id))
-    const inRawButNotGetAll = rawPageIds.filter(id => !getAllPagesIds.includes(id))
+    const inGetAllButNotRawSpecific = getAllPagesIds.filter(id => !rawSpecificIds.includes(id))
+    const inRawSpecificButNotGetAll = rawSpecificIds.filter(id => !getAllPagesIds.includes(id))
+    const inRawStarButNotGetAll = rawStarIds.filter(id => !getAllPagesIds.includes(id))
+    const inGetAllButNotRawStar = getAllPagesIds.filter(id => !rawStarIds.includes(id))
 
     diagnostics.rawTableAudit = {
-      rawQueryError: rawAllErr?.message || null,
-      rawPageCount: rawAllPages?.length || 0,
-      rawPageIds: rawAllPages || [],
+      rawSpecificError: rawSpecificErr?.message || null,
+      rawSpecificCount: rawSpecific?.length || 0,
+      rawSpecificPages: rawSpecific || [],
+      rawStarError: rawStarErr?.message || null,
+      rawStarCount: rawStar?.length || 0,
+      rawStarPages: (rawStar || []).map((p: { id: string; name: string; client_id: string }) => ({
+        id: p.id,
+        name: p.name,
+        client_id: p.client_id,
+      })),
       getAllPagesCount: pages.length,
-      getAllPagesIds,
-      discrepancy_inGetAllButNotRaw: inGetAllButNotRaw,
-      discrepancy_inRawButNotGetAll: inRawButNotGetAll,
+      getAllPagesIds: pages.map(p => ({ id: p.id, name: p.name, clientId: p.clientId, client: p.client })),
+      clients: allClients || [],
+      clientsError: clientsErr?.message || null,
+      discrepancies: {
+        inGetAllButNotRawSpecific,
+        inRawSpecificButNotGetAll,
+        inGetAllButNotRawStar,
+        inRawStarButNotGetAll,
+      },
     }
 
     // 8. Direct DB diagnostics for pages without check history
@@ -230,7 +261,7 @@ export async function GET(request: Request) {
           pageName: page.name,
           pageIdFromGetAll: page.id,
           pageIdLength: page.id.length,
-          existsInRawList: rawPageIds.includes(page.id),
+          existsInRawList: rawSpecificIds.includes(page.id),
           rawPageFound: rawPage && rawPage.length > 0,
           rawPageData: rawPage?.[0] || null,
           rawPageError: rawErr?.message || null,
