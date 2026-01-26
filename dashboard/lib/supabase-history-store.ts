@@ -81,14 +81,13 @@ export async function getLatestCheck(pageId: string): Promise<CheckEntry | null>
     .eq('page_id', pageId)
     .order('checked_at', { ascending: false })
     .limit(1)
-    .single()
 
-  if (error && error.code !== 'PGRST116') {
+  if (error) {
     console.error('Error fetching latest check:', error)
     return null
   }
 
-  return data ? toCheckEntry(data) : null
+  return data && data.length > 0 ? toCheckEntry(data[0]) : null
 }
 
 export async function getHourlyAvgResponseTime(
