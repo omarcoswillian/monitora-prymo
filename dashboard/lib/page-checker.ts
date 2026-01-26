@@ -114,6 +114,7 @@ export async function checkPage(page: PageToCheck): Promise<CheckResult> {
       method: 'GET',
       signal: controller.signal,
       headers: { 'User-Agent': 'PrymoMonitora/1.0' },
+      cache: 'no-store',
     })
 
     clearTimeout(timeoutId)
