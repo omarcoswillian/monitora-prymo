@@ -186,20 +186,23 @@ export default function PageFormModal({
             </div>
 
             <div className="form-group">
-              <label htmlFor="timeout">Timeout (ms)</label>
-              <input
-                type="number"
+              <label htmlFor="timeout">Timeout</label>
+              <select
                 id="timeout"
                 value={data.timeout}
                 onChange={e =>
-                  handleChange('timeout', parseInt(e.target.value) || 0)
+                  handleChange('timeout', parseInt(e.target.value))
                 }
-                className="input"
-                min={1000}
-                step={1000}
+                className="timeout-select"
                 required
-              />
-              <span className="form-hint">Minimum: 1000ms</span>
+              >
+                <option value={10000}>10 segundos</option>
+                <option value={15000}>15 segundos</option>
+                <option value={20000}>20 segundos</option>
+                <option value={25000}>25 segundos</option>
+                <option value={30000}>30 segundos</option>
+              </select>
+              <span className="form-hint">Tempo maximo de espera pela resposta</span>
             </div>
           </div>
 

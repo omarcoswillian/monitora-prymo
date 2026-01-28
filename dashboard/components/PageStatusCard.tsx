@@ -1,9 +1,13 @@
 'use client'
 
-import { CheckCircle2, XCircle, AlertTriangle, Clock, Activity } from 'lucide-react'
+import {
+  CheckCircle2, XCircle, AlertTriangle, Clock, Activity,
+  Timer, ShieldAlert, Hourglass,
+} from 'lucide-react'
+import type { PageStatus, ErrorType, CheckOrigin } from '@/lib/types'
+import { STATUS_CONFIG, ERROR_TYPE_LABELS, CHECK_ORIGIN_LABELS } from '@/lib/types'
 
 type StatusLabel = 'Online' | 'Offline' | 'Lento' | 'Soft 404'
-type ErrorType = 'HTTP_404' | 'HTTP_500' | 'TIMEOUT' | 'SOFT_404' | 'CONNECTION_ERROR' | 'UNKNOWN'
 
 interface StatusEntry {
   pageId: string
@@ -15,9 +19,12 @@ interface StatusEntry {
   error?: string
   timestamp: string
   statusLabel: StatusLabel
+  pageStatus?: PageStatus
   errorType?: ErrorType
   httpStatus: number | null
   lastCheckedAt: string
+  checkOrigin?: CheckOrigin
+  consecutiveFailures?: number
 }
 
 interface PageStatusCardProps {
@@ -25,13 +32,15 @@ interface PageStatusCardProps {
   enabled: boolean
 }
 
-const ERROR_TYPE_DESCRIPTIONS: Record<ErrorType, string> = {
-  HTTP_404: 'Pagina nao encontrada (HTTP 404)',
-  HTTP_500: 'Erro no servidor (HTTP 500+)',
-  TIMEOUT: 'A requisicao demorou demais e foi cancelada',
-  SOFT_404: 'HTTP 200 mas conteudo indica erro (ex: "pagina nao encontrada")',
-  CONNECTION_ERROR: 'Nao foi possivel conectar ao servidor',
-  UNKNOWN: 'Erro desconhecido',
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ICON_MAP: Record<string, React.ComponentType<any>> = {
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Clock,
+  Timer,
+  ShieldAlert,
+  Hourglass,
 }
 
 function formatDateTime(timestamp: string): string {
@@ -75,23 +84,36 @@ export default function PageStatusCard({ status, enabled }: PageStatusCardProps)
     )
   }
 
-  const isOnline = status.statusLabel === 'Online'
-  const isOffline = status.statusLabel === 'Offline'
-  const isSlow = status.statusLabel === 'Lento'
-  const isSoft404 = status.statusLabel === 'Soft 404'
+  // Use granular status if available, fallback to old logic
+  const pageStatus = status.pageStatus || (() => {
+    if (status.statusLabel === 'Online') return 'ONLINE' as PageStatus
+    if (status.statusLabel === 'Lento') return 'LENTO' as PageStatus
+    return 'OFFLINE' as PageStatus
+  })()
 
-  const StatusIcon = isOnline ? CheckCircle2 : isOffline || isSoft404 ? XCircle : AlertTriangle
-  const statusClass = isOnline ? 'ok' : isOffline || isSoft404 ? 'error' : 'warning'
+  const config = STATUS_CONFIG[pageStatus]
+  const severityMap: Record<string, string> = {
+    ok: 'ok',
+    warning: 'warning',
+    error: 'error',
+    info: 'pending',
+  }
+  const statusClass = severityMap[config?.severity || 'error'] || 'error'
+  const StatusIcon = ICON_MAP[config?.icon || 'AlertTriangle'] || AlertTriangle
+  const errorTypeInfo = status.errorType ? ERROR_TYPE_LABELS[status.errorType] : null
 
   return (
     <div className={`status-card status-card-${statusClass}`}>
       <div className="status-card-header">
         <StatusIcon size={24} className={`status-icon status-icon-${statusClass}`} />
         <div>
-          <h3 className="status-card-title">{status.statusLabel}</h3>
-          {status.errorType && (
+          <h3 className="status-card-title">{config?.label || status.statusLabel}</h3>
+          {config?.tooltip && (
+            <p className="status-card-subtitle">{config.tooltip}</p>
+          )}
+          {errorTypeInfo && (
             <p className="status-card-error-detail">
-              {ERROR_TYPE_DESCRIPTIONS[status.errorType]}
+              {errorTypeInfo.description}
             </p>
           )}
         </div>
@@ -118,6 +140,24 @@ export default function PageStatusCard({ status, enabled }: PageStatusCardProps)
             {formatDateTime(status.lastCheckedAt)}
           </span>
         </div>
+
+        {status.checkOrigin && (
+          <div className="status-card-item">
+            <span className="status-card-label">Detectado por</span>
+            <span className="status-card-value status-card-value-small" title={CHECK_ORIGIN_LABELS[status.checkOrigin]?.userAgent}>
+              {CHECK_ORIGIN_LABELS[status.checkOrigin]?.label || status.checkOrigin}
+            </span>
+          </div>
+        )}
+
+        {status.consecutiveFailures !== undefined && status.consecutiveFailures > 0 && (
+          <div className="status-card-item">
+            <span className="status-card-label">Falhas consecutivas</span>
+            <span className="status-card-value status-value-error">
+              {status.consecutiveFailures}
+            </span>
+          </div>
+        )}
       </div>
 
       {status.error && (

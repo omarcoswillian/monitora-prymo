@@ -74,6 +74,13 @@ export interface DbPage {
   soft_404_patterns: string[] | null
   created_at: string
   updated_at: string
+  current_status: string
+  last_status_change: string | null
+  consecutive_failures: number
+  last_check_origin: string | null
+  last_error_type: string | null
+  last_error_message: string | null
+  last_checked_at: string | null
 }
 
 export interface DbCheckHistory {
@@ -83,6 +90,8 @@ export interface DbCheckHistory {
   response_time: number
   error: string | null
   checked_at: string
+  check_origin: string
+  status_label: string | null
 }
 
 export interface DbIncident {
@@ -92,6 +101,10 @@ export interface DbIncident {
   message: string
   started_at: string
   resolved_at: string | null
+  probable_cause: string | null
+  check_origin: string
+  consecutive_failures: number
+  final_status: string | null
 }
 
 export interface DbSettings {
@@ -115,4 +128,15 @@ export interface DbAuditHistory {
   cls: number | null
   speed_index: number | null
   audited_at: string
+}
+
+export interface DbPageEvent {
+  id: string
+  page_id: string
+  event_type: string
+  status: string | null
+  message: string
+  metadata: Record<string, unknown> | null
+  check_origin: string | null
+  created_at: string
 }

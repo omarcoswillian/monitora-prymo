@@ -21,18 +21,16 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  Timer,
+  ShieldAlert,
 } from "lucide-react";
 import FiltersBar from "@/components/FiltersBar";
 import FilterChip from "@/components/FilterChip";
 import FilterSelect from "@/components/FilterSelect";
 
-type ErrorType =
-  | "HTTP_404"
-  | "HTTP_500"
-  | "TIMEOUT"
-  | "SOFT_404"
-  | "CONNECTION_ERROR"
-  | "UNKNOWN";
+import type { PageStatus, ErrorType, CheckOrigin } from "@/lib/types";
+import { STATUS_CONFIG, ERROR_TYPE_LABELS as SHARED_ERROR_TYPE_LABELS } from "@/lib/types";
+
 type StatusLabel = "Online" | "Offline" | "Lento" | "Soft 404";
 
 interface StatusEntry {
@@ -45,9 +43,12 @@ interface StatusEntry {
   error?: string;
   timestamp: string;
   statusLabel: StatusLabel;
+  pageStatus?: PageStatus;
   errorType?: ErrorType;
   httpStatus: number | null;
   lastCheckedAt: string;
+  checkOrigin?: CheckOrigin;
+  consecutiveFailures?: number;
 }
 
 interface PageEntry {
@@ -107,11 +108,11 @@ interface AuditData {
   apiKeyConfigured: boolean;
 }
 
-type Filter = "all" | "online" | "offline" | "slow" | "soft404";
+type Filter = "all" | "online" | "offline" | "slow" | "soft404" | "timeout" | "blocked";
 
 const DEFAULT_SLOW_THRESHOLD = 1500;
 
-const ERROR_TYPE_LABELS: Record<ErrorType, { label: string; tooltip: string }> =
+const ERROR_TYPE_LABELS: Record<string, { label: string; tooltip: string }> =
   {
     HTTP_404: { label: "404", tooltip: "Pagina nao encontrada (HTTP 404)" },
     HTTP_500: { label: "5xx", tooltip: "Erro no servidor (HTTP 500+)" },
@@ -127,6 +128,14 @@ const ERROR_TYPE_LABELS: Record<ErrorType, { label: string; tooltip: string }> =
     CONNECTION_ERROR: {
       label: "Conexao",
       tooltip: "Nao foi possivel conectar ao servidor",
+    },
+    WAF_BLOCK: {
+      label: "WAF",
+      tooltip: "Bloqueado por firewall ou protecao anti-bot",
+    },
+    REDIRECT_LOOP: {
+      label: "Redirect",
+      tooltip: "Redirecionamento excessivo ou para pagina de bloqueio",
     },
     UNKNOWN: { label: "Erro", tooltip: "Erro desconhecido" },
   };
@@ -147,8 +156,20 @@ function formatTimeAgo(timestamp: string): string {
 
 function getStatusType(
   entry: StatusEntry | undefined,
-): "online" | "offline" | "slow" | "soft404" | "pending" {
+): "online" | "offline" | "slow" | "soft404" | "timeout" | "blocked" | "pending" {
   if (!entry) return "pending";
+  // Use granular pageStatus if available
+  if (entry.pageStatus) {
+    switch (entry.pageStatus) {
+      case 'ONLINE': return 'online';
+      case 'LENTO': return 'slow';
+      case 'TIMEOUT': return 'timeout';
+      case 'BLOQUEADO': return 'blocked';
+      case 'OFFLINE': return entry.errorType === 'SOFT_404' ? 'soft404' : 'offline';
+      default: return 'offline';
+    }
+  }
+  // Fallback to old statusLabel
   if (entry.statusLabel === "Soft 404") return "soft404";
   if (entry.statusLabel === "Offline") return "offline";
   if (entry.statusLabel === "Lento") return "slow";
@@ -356,15 +377,17 @@ export default function Dashboard() {
   }, [mergedData, tableClientFilter]);
 
   const counts = useMemo(() => {
-    const enabledStatus = clientFiltered
+    const enabledWithStatus = clientFiltered
       .filter((d) => d.enabled && d.status)
-      .map((d) => d.status!);
+      .map((d) => ({ status: d.status!, type: getStatusType(d.status) }));
     return {
       total: clientFiltered.length,
-      online: enabledStatus.filter((e) => e.statusLabel === "Online").length,
-      offline: enabledStatus.filter((e) => e.statusLabel === "Offline").length,
-      slow: enabledStatus.filter((e) => e.statusLabel === "Lento").length,
-      soft404: enabledStatus.filter((e) => e.statusLabel === "Soft 404").length,
+      online: enabledWithStatus.filter((e) => e.type === "online").length,
+      offline: enabledWithStatus.filter((e) => e.type === "offline").length,
+      slow: enabledWithStatus.filter((e) => e.type === "slow").length,
+      soft404: enabledWithStatus.filter((e) => e.type === "soft404").length,
+      timeout: enabledWithStatus.filter((e) => e.type === "timeout").length,
+      blocked: enabledWithStatus.filter((e) => e.type === "blocked").length,
     };
   }, [clientFiltered]);
 
@@ -476,7 +499,7 @@ export default function Dashboard() {
     );
   }
 
-  const hasProblems = counts.offline > 0 || counts.soft404 > 0;
+  const hasProblems = counts.offline > 0 || counts.soft404 > 0 || counts.timeout > 0 || counts.blocked > 0;
 
   return (
     <AppShell>
@@ -547,12 +570,30 @@ export default function Dashboard() {
             <div className="card-label">Soft 404</div>
             <div className="card-value soft404">{counts.soft404}</div>
           </div>
+          <div
+            className={`card ${counts.timeout > 0 ? "card-highlight-danger" : ""}`}
+          >
+            <div className="card-icon">
+              <Timer size={20} />
+            </div>
+            <div className="card-label">Timeout</div>
+            <div className="card-value offline">{counts.timeout}</div>
+          </div>
+          <div
+            className={`card ${counts.blocked > 0 ? "card-highlight-danger" : ""}`}
+          >
+            <div className="card-icon">
+              <ShieldAlert size={20} />
+            </div>
+            <div className="card-label">Bloqueado</div>
+            <div className="card-value offline">{counts.blocked}</div>
+          </div>
         </div>
 
         {hasProblems && (
           <div className="alert-banner">
             <AlertTriangle size={18} />
-            Atencao: {counts.offline + counts.soft404} pagina(s) com problema
+            Atencao: {counts.offline + counts.soft404 + counts.timeout + counts.blocked} pagina(s) com problema
             detectado!
           </div>
         )}
@@ -590,6 +631,8 @@ export default function Dashboard() {
               { key: "offline", label: "Offline" },
               { key: "slow", label: "Lento" },
               { key: "soft404", label: "Soft 404" },
+              { key: "timeout", label: "Timeout" },
+              { key: "blocked", label: "Bloqueado" },
             ] as const
           ).map((f) => (
             <FilterChip
@@ -633,7 +676,7 @@ export default function Dashboard() {
                         : "disabled";
 
                   const isUrgent =
-                    statusType === "offline" || statusType === "soft404";
+                    statusType === "offline" || statusType === "soft404" || statusType === "timeout" || statusType === "blocked";
                   const isWarning = statusType === "slow";
                   const auditScores = entry.audit?.audit?.scores;
 
@@ -682,7 +725,9 @@ export default function Dashboard() {
                         ) : (
                           <div className="status-cell">
                             <span className={`badge badge-${statusType}`}>
-                              {entry.status.statusLabel}
+                              {entry.status.pageStatus
+                                ? (STATUS_CONFIG[entry.status.pageStatus]?.label || entry.status.statusLabel)
+                                : entry.status.statusLabel}
                             </span>
                             {entry.status.errorType && (
                               <span

@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { logEvent } from './event-logger'
 
 const PAGESPEED_API_URL = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed'
 
@@ -47,10 +48,21 @@ export interface AuditOptions {
   categories?: string[]
 }
 
-export async function runPageSpeedAudit(url: string, options?: AuditOptions): Promise<AuditResult> {
+export async function runPageSpeedAudit(url: string, options?: AuditOptions, pageId?: string): Promise<AuditResult> {
   const apiKey = process.env.PAGESPEED_API_KEY
   const strategy = options?.strategy || 'mobile'
   const categories = options?.categories || ['performance', 'accessibility', 'best-practices', 'seo']
+
+  // Log audit start event
+  if (pageId) {
+    try {
+      await logEvent(pageId, 'pagespeed_audit_started', `Auditoria PageSpeed iniciada (${strategy})`, {
+        strategy,
+        categories,
+        url,
+      }, 'pagespeed')
+    } catch { /* fire-and-forget */ }
+  }
 
   const params = new URLSearchParams({
     url,
@@ -84,7 +96,19 @@ export async function runPageSpeedAudit(url: string, options?: AuditOptions): Pr
 
     if (!response.ok) {
       const errorText = await response.text()
-      throw new Error(`PageSpeed API error: ${response.status} - ${errorText}`)
+      const errorMsg = `PageSpeed API error: ${response.status} - ${errorText}`
+
+      // Log failure event
+      if (pageId) {
+        try {
+          await logEvent(pageId, 'pagespeed_audit_failed', errorMsg, {
+            httpStatus: response.status,
+            strategy,
+          }, 'pagespeed')
+        } catch { /* fire-and-forget */ }
+      }
+
+      throw new Error(errorMsg)
     }
 
     const data = await response.json()
@@ -96,6 +120,16 @@ export async function runPageSpeedAudit(url: string, options?: AuditOptions): Pr
       seo: extractScore(data, 'seo'),
     }
 
+    // Log success event
+    if (pageId) {
+      try {
+        await logEvent(pageId, 'pagespeed_audit_completed', `Auditoria concluida: Performance=${scores.performance}, SEO=${scores.seo}`, {
+          scores,
+          strategy,
+        }, 'pagespeed')
+      } catch { /* fire-and-forget */ }
+    }
+
     return {
       url,
       timestamp: new Date().toISOString(),
@@ -105,6 +139,17 @@ export async function runPageSpeedAudit(url: string, options?: AuditOptions): Pr
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+    // Log failure event (if not already logged above)
+    if (pageId && !errorMessage.includes('PageSpeed API error')) {
+      try {
+        await logEvent(pageId, 'pagespeed_audit_failed', `Auditoria falhou: ${errorMessage}`, {
+          error: errorMessage,
+          strategy,
+        }, 'pagespeed')
+      } catch { /* fire-and-forget */ }
+    }
+
     return {
       url,
       timestamp: new Date().toISOString(),

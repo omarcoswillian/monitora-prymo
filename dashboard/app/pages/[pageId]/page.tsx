@@ -7,8 +7,13 @@ import { ExternalLink, Play, Pause, Pencil, BarChart3, Globe, Clock, Activity, G
 import Breadcrumbs from '@/components/Breadcrumbs'
 import PageStatusCard from '@/components/PageStatusCard'
 import RedirectChain from '@/components/RedirectChain'
+import LastKnownCause from '@/components/LastKnownCause'
+import ComparisonCard from '@/components/ComparisonCard'
+import EventTimeline from '@/components/EventTimeline'
 import { ResponseTimeChart, UptimeChart } from '@/components/Charts'
 import { AppShell } from '@/components/layout'
+import type { PageStatus, ErrorType, CheckOrigin } from '@/lib/types'
+import { STATUS_CONFIG } from '@/lib/types'
 import {
   LineChart,
   Line,
@@ -20,7 +25,6 @@ import {
   Legend,
 } from 'recharts'
 
-type ErrorType = 'HTTP_404' | 'HTTP_500' | 'TIMEOUT' | 'SOFT_404' | 'CONNECTION_ERROR' | 'UNKNOWN'
 type StatusLabel = 'Online' | 'Offline' | 'Lento' | 'Soft 404'
 
 interface StatusEntry {
@@ -33,9 +37,12 @@ interface StatusEntry {
   error?: string
   timestamp: string
   statusLabel: StatusLabel
+  pageStatus?: PageStatus
   errorType?: ErrorType
   httpStatus: number | null
   lastCheckedAt: string
+  checkOrigin?: CheckOrigin
+  consecutiveFailures?: number
   redirectChain?: Array<{ url: string; status: number; isFinal?: boolean }>
 }
 
@@ -103,6 +110,9 @@ interface IncidentEntry {
   duration: number | null
   type: ErrorType
   status: StatusLabel
+  pageStatus?: PageStatus | null
+  probableCause?: string | null
+  checkOrigin?: CheckOrigin
   error?: string
 }
 
@@ -128,6 +138,26 @@ function getScoreClass(score: number | null): string {
   if (score >= 90) return 'score-good'
   if (score >= 50) return 'score-ok'
   return 'score-bad'
+}
+
+function getIncidentBadgeClass(incident: IncidentEntry): string {
+  if (incident.pageStatus) {
+    const config = STATUS_CONFIG[incident.pageStatus]
+    if (config) {
+      if (config.severity === 'error') return 'incident-badge-error'
+      if (config.severity === 'warning') return 'incident-badge-warning'
+    }
+  }
+  if (incident.status === 'Offline' || incident.status === 'Soft 404') return 'incident-badge-error'
+  return 'incident-badge-warning'
+}
+
+function getIncidentStatusLabel(incident: IncidentEntry): string {
+  if (incident.pageStatus) {
+    const config = STATUS_CONFIG[incident.pageStatus]
+    if (config) return config.label
+  }
+  return incident.status
 }
 
 export default function PageDetailPage() {
@@ -261,6 +291,22 @@ export default function PageDetailPage() {
     return audits.latest[page.id] || null
   }, [page, audits.latest])
 
+  // Get most recent incident for LastKnownCause
+  const lastIncidentForCause = useMemo(() => {
+    if (incidents.length === 0) return null
+    const inc = incidents[0]
+    return {
+      id: inc.id,
+      startedAt: inc.startedAt,
+      endedAt: inc.endedAt,
+      type: inc.type,
+      pageStatus: inc.pageStatus || null,
+      message: inc.error || inc.probableCause || '',
+      probableCause: inc.probableCause || null,
+      checkOrigin: inc.checkOrigin || ('monitor' as const),
+    }
+  }, [incidents])
+
   const toggleEnabled = async () => {
     if (!page) return
     try {
@@ -362,6 +408,9 @@ export default function PageDetailPage() {
             </div>
           </div>
         </header>
+
+      {/* Last Known Cause */}
+      <LastKnownCause incident={lastIncidentForCause} />
 
       {/* Status Card */}
       <PageStatusCard status={pageStatus} enabled={page.enabled} />
@@ -505,6 +554,9 @@ export default function PageDetailPage() {
         </div>
       )}
 
+      {/* Comparison: Monitor vs PageSpeed */}
+      <ComparisonCard pageId={page.id} />
+
       {/* Incidents History */}
       {incidents.length > 0 && (
         <div className="incidents-section">
@@ -513,19 +565,22 @@ export default function PageDetailPage() {
             {incidents.slice(0, 10).map(incident => (
               <div key={incident.id} className="incident-item">
                 <div className="incident-header">
-                  <span className={`incident-badge incident-badge-${incident.status === 'Offline' ? 'error' : incident.status === 'Soft 404' ? 'error' : 'warning'}`}>
-                    {incident.status}
+                  <span className={`incident-badge ${getIncidentBadgeClass(incident)}`}>
+                    {getIncidentStatusLabel(incident)}
                   </span>
                   <span className="incident-time">{formatDateTime(incident.startedAt)}</span>
                 </div>
                 <div className="incident-details">
+                  {incident.probableCause && (
+                    <span className="incident-cause">{incident.probableCause}</span>
+                  )}
                   {incident.duration !== null && (
                     <span className="incident-duration">
                       <Clock size={12} />
                       Duracao: {formatDuration(incident.duration)}
                     </span>
                   )}
-                  {incident.error && (
+                  {incident.error && !incident.probableCause && (
                     <span className="incident-error">{incident.error}</span>
                   )}
                 </div>
@@ -534,6 +589,9 @@ export default function PageDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Event Timeline */}
+      <EventTimeline pageId={page.id} />
 
       {/* Page Info */}
       <div className="page-info-section">

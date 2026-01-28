@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const audit = await runPageSpeedAudit(url)
+    const audit = await runPageSpeedAudit(url, undefined, pageId)
     const entry = await saveAudit(pageId, url, audit)
 
     // Update rate limit timestamp

@@ -2,14 +2,15 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, Clock, ExternalLink, XCircle, AlertOctagon, Gauge } from 'lucide-react'
+import { AlertTriangle, Clock, ExternalLink, XCircle, AlertOctagon, Gauge, Timer, ShieldAlert } from 'lucide-react'
 import Breadcrumbs from '@/components/Breadcrumbs'
 import FiltersBar from '@/components/FiltersBar'
 import FilterChip from '@/components/FilterChip'
 import FilterSelect from '@/components/FilterSelect'
 import { AppShell } from '@/components/layout'
+import type { PageStatus, ErrorType, CheckOrigin } from '@/lib/types'
+import { STATUS_CONFIG } from '@/lib/types'
 
-type ErrorType = 'HTTP_404' | 'HTTP_500' | 'TIMEOUT' | 'SOFT_404' | 'CONNECTION_ERROR' | 'UNKNOWN'
 type StatusLabel = 'Online' | 'Offline' | 'Lento' | 'Soft 404'
 
 interface IncidentEntry {
@@ -23,6 +24,9 @@ interface IncidentEntry {
   duration: number | null
   type: ErrorType
   status: StatusLabel
+  pageStatus?: PageStatus | null
+  probableCause?: string | null
+  checkOrigin?: CheckOrigin
   error?: string
   httpStatus?: number | null
 }
@@ -39,7 +43,7 @@ interface Client {
   name: string
 }
 
-type SeverityFilter = 'all' | 'error' | 'slow' | 'soft404'
+type SeverityFilter = 'all' | 'error' | 'slow' | 'soft404' | 'timeout' | 'blocked'
 
 function formatDateTime(timestamp: string): string {
   const date = new Date(timestamp)
@@ -58,12 +62,14 @@ function formatDuration(ms: number): string {
   return `${(ms / 3600000).toFixed(1)}h`
 }
 
-const ERROR_TYPE_LABELS: Record<ErrorType, string> = {
+const ERROR_TYPE_LABELS: Record<string, string> = {
   HTTP_404: 'HTTP 404',
   HTTP_500: 'HTTP 5xx',
   TIMEOUT: 'Timeout',
   SOFT_404: 'Soft 404',
   CONNECTION_ERROR: 'Conexao',
+  WAF_BLOCK: 'WAF/Bloqueio',
+  REDIRECT_LOOP: 'Redirect Loop',
   UNKNOWN: 'Desconhecido',
 }
 
@@ -139,13 +145,19 @@ export default function IncidentsPage() {
     if (severityFilter !== 'all') {
       filtered = filtered.filter(i => {
         if (severityFilter === 'error') {
-          return i.status === 'Offline'
+          return i.pageStatus === 'OFFLINE' || i.status === 'Offline'
         }
         if (severityFilter === 'slow') {
-          return i.status === 'Lento'
+          return i.pageStatus === 'LENTO' || i.status === 'Lento'
         }
         if (severityFilter === 'soft404') {
-          return i.status === 'Soft 404'
+          return i.status === 'Soft 404' || i.type === 'SOFT_404'
+        }
+        if (severityFilter === 'timeout') {
+          return i.pageStatus === 'TIMEOUT' || i.type === 'TIMEOUT'
+        }
+        if (severityFilter === 'blocked') {
+          return i.pageStatus === 'BLOQUEADO' || i.type === 'WAF_BLOCK'
         }
         return true
       })
@@ -168,9 +180,11 @@ export default function IncidentsPage() {
     return {
       total: incidents.length,
       today: todayIncidents.length,
-      errors: incidents.filter(i => i.status === 'Offline').length,
-      slow: incidents.filter(i => i.status === 'Lento').length,
-      soft404: incidents.filter(i => i.status === 'Soft 404').length,
+      errors: incidents.filter(i => i.pageStatus === 'OFFLINE' || i.status === 'Offline').length,
+      slow: incidents.filter(i => i.pageStatus === 'LENTO' || i.status === 'Lento').length,
+      soft404: incidents.filter(i => i.status === 'Soft 404' || i.type === 'SOFT_404').length,
+      timeout: incidents.filter(i => i.pageStatus === 'TIMEOUT' || i.type === 'TIMEOUT').length,
+      blocked: incidents.filter(i => i.pageStatus === 'BLOQUEADO' || i.type === 'WAF_BLOCK').length,
       active: incidents.filter(i => i.endedAt === null).length,
     }
   }, [incidents])
@@ -242,6 +256,20 @@ export default function IncidentsPage() {
           <div className="card-label">Lentidao</div>
           <div className="card-value slow">{stats.slow}</div>
         </div>
+        <div className={`card ${stats.timeout > 0 ? 'card-highlight-danger' : ''}`}>
+          <div className="card-icon">
+            <Timer size={20} />
+          </div>
+          <div className="card-label">Timeout</div>
+          <div className="card-value offline">{stats.timeout}</div>
+        </div>
+        <div className={`card ${stats.blocked > 0 ? 'card-highlight-danger' : ''}`}>
+          <div className="card-icon">
+            <ShieldAlert size={20} />
+          </div>
+          <div className="card-label">Bloqueado</div>
+          <div className="card-value offline">{stats.blocked}</div>
+        </div>
       </div>
 
       {/* Filters */}
@@ -261,6 +289,8 @@ export default function IncidentsPage() {
           { key: 'error', label: 'Erro' },
           { key: 'slow', label: 'Lento' },
           { key: 'soft404', label: 'Soft 404' },
+          { key: 'timeout', label: 'Timeout' },
+          { key: 'blocked', label: 'Bloqueado' },
         ] as const).map(f => (
           <FilterChip
             key={f.key}
@@ -295,8 +325,18 @@ export default function IncidentsPage() {
               {filteredIncidents.map(incident => {
                 const pageDbId = getPageDbId(incident.pageId)
                 const isActive = incident.endedAt === null
-                const statusClass = incident.status === 'Offline' ? 'offline' :
-                  incident.status === 'Soft 404' ? 'soft404' : 'slow'
+                const statusLabel = incident.pageStatus
+                  ? (STATUS_CONFIG[incident.pageStatus]?.label || incident.status)
+                  : incident.status
+                const statusClass = (() => {
+                  if (incident.pageStatus) {
+                    const cfg = STATUS_CONFIG[incident.pageStatus]
+                    if (cfg) return cfg.cssClass
+                  }
+                  if (incident.status === 'Offline') return 'offline'
+                  if (incident.status === 'Soft 404') return 'soft404'
+                  return 'slow'
+                })()
 
                 return (
                   <tr key={incident.id} className={isActive ? 'row-urgent' : ''}>
@@ -333,10 +373,15 @@ export default function IncidentsPage() {
                           HTTP {incident.httpStatus}
                         </span>
                       )}
+                      {incident.probableCause && (
+                        <span className="incident-cause-text">
+                          {incident.probableCause}
+                        </span>
+                      )}
                     </td>
                     <td>
                       <span className={`badge badge-${statusClass}`}>
-                        {incident.status}
+                        {statusLabel}
                         {isActive && ' (ativo)'}
                       </span>
                     </td>

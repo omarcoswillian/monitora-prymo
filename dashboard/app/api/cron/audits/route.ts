@@ -146,7 +146,7 @@ export async function GET(request: Request) {
       const page = toAudit[i]
 
       try {
-        const audit = await runPageSpeedAudit(page.url, auditOptions)
+        const audit = await runPageSpeedAudit(page.url, auditOptions, page.id)
         await saveAudit(page.id, page.url, audit)
 
         if (audit.success) {

@@ -1,12 +1,12 @@
-import type { Metadata } from 'next'
-import SessionProvider from '@/components/SessionProvider'
-import { ThemeProvider } from '@/components/ThemeProvider'
-import './globals.css'
+import type { Metadata } from "next";
+import SessionProvider from "@/components/SessionProvider";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: 'Prymo Monitora',
-  description: 'Dashboard de monitoramento de paginas web',
-}
+  title: "prymo",
+  description: "Dashboard de monitoramento de paginas web",
+};
 
 // Script to prevent flash of wrong theme
 const themeScript = `
@@ -19,12 +19,12 @@ const themeScript = `
         : 'dark';
     document.documentElement.setAttribute('data-theme', theme);
   })();
-`
+`;
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
@@ -33,13 +33,11 @@ export default function RootLayout({
       </head>
       <body>
         <ThemeProvider>
-          <SessionProvider>
-            {children}
-          </SessionProvider>
+          <SessionProvider>{children}</SessionProvider>
         </ThemeProvider>
       </body>
     </html>
-  )
+  );
 }
 
 // Note: The AppShell component with Sidebar is imported in the pages that need it

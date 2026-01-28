@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import {
-  checkPage,
+  checkPageWithRetry,
   writeCheckHistory,
   trackIncident,
   loadOpenIncidents,
+  updatePageStatus,
 } from '@/lib/page-checker'
 import type { PageToCheck } from '@/lib/page-checker'
 import { getSettings } from '@/lib/supabase-settings-store'
+import { logEvent, cleanupOldEvents } from '@/lib/event-logger'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -17,7 +19,7 @@ const CLEANUP_INTERVAL_HOURS = 1
 
 // ===== SUPABASE OPERATIONS =====
 
-async function loadEnabledPages(): Promise<PageToCheck[]> {
+async function loadEnabledPages(globalTimeout: number): Promise<PageToCheck[]> {
   const { data, error } = await supabase
     .from('pages')
     .select('id, name, url, timeout, soft_404_patterns, clients(name)')
@@ -33,7 +35,7 @@ async function loadEnabledPages(): Promise<PageToCheck[]> {
     name: page.name,
     clientName: page.clients?.name || 'Unknown',
     url: page.url,
-    timeout: page.timeout || 10000,
+    timeout: page.timeout || globalTimeout,
     soft404Patterns: page.soft_404_patterns,
   }))
 }
@@ -142,13 +144,15 @@ export async function GET(request: Request) {
 
   try {
     // 3. Load pages, open incidents, and settings concurrently
-    const [pages, openIncidents, settings] = await Promise.all([
-      loadEnabledPages(),
-      loadOpenIncidents(),
+    const [settings, openIncidents] = await Promise.all([
       getSettings(),
+      loadOpenIncidents(),
     ])
     const slowThreshold = settings.monitoring.slowThreshold
-    console.log(`[Cron Uptime] Settings loaded: slowThreshold=${slowThreshold}ms`)
+    const globalTimeout = settings.monitoring.httpTimeout
+    console.log(`[Cron Uptime] Settings loaded: slowThreshold=${slowThreshold}ms, timeout=${globalTimeout}ms, errorsToOpenIncident=${settings.monitoring.errorsToOpenIncident}`)
+
+    const pages = await loadEnabledPages(globalTimeout)
 
     if (pages.length === 0) {
       console.log('[Cron Uptime] No enabled pages found')
@@ -165,12 +169,47 @@ export async function GET(request: Request) {
 
     console.log(`[Cron Uptime] Checking ${pages.length} page(s), ${openIncidents.size} open incident(s)`)
 
-    // 4. Check all pages concurrently (using configured slowThreshold)
+    // 4. Check all pages concurrently with retry (1 retry, 5s delay)
     const results = await Promise.allSettled(
-      pages.map(page => checkPage(page, slowThreshold))
+      pages.map(async page => {
+        // Log check start event (fire-and-forget)
+        try {
+          await logEvent(page.id, 'uptime_check_started', `Verificacao iniciada para ${page.url}`, {
+            timeout: page.timeout,
+            slowThreshold,
+          }, 'monitor')
+        } catch { /* fire-and-forget */ }
+
+        const result = await checkPageWithRetry(page, slowThreshold, 1, 5000)
+
+        // Log result event (fire-and-forget)
+        try {
+          if (result.pageStatus === 'TIMEOUT') {
+            await logEvent(page.id, 'timeout', `Timeout apos ${result.responseTime}ms`, {
+              timeout: page.timeout,
+              responseTime: result.responseTime,
+              retryCount: result.retryCount,
+            }, 'monitor')
+          } else if (result.blocked) {
+            await logEvent(page.id, 'block_detected', result.blockReason || 'Bloqueio detectado', {
+              httpStatus: result.status,
+              blockReason: result.blockReason,
+            }, 'monitor')
+          } else {
+            await logEvent(page.id, 'http_status_received', `HTTP ${result.status} em ${result.responseTime}ms`, {
+              httpStatus: result.status,
+              responseTime: result.responseTime,
+              pageStatus: result.pageStatus,
+              retryCount: result.retryCount,
+            }, 'monitor')
+          }
+        } catch { /* fire-and-forget */ }
+
+        return result
+      })
     )
 
-    // 5. Process results: write history + track incidents
+    // 5. Process results: write history + update page status + track incidents
     let successCount = 0
     let failCount = 0
     let incidentsCreated = 0
@@ -188,27 +227,33 @@ export async function GET(request: Request) {
       // Write to check_history
       await writeCheckHistory(checkResult)
 
-      // Track incidents (pass shared map to batch operations)
-      const incident = await trackIncident(checkResult, openIncidents)
+      // Update page status (consecutive_failures, current_status, etc.)
+      await updatePageStatus(checkResult)
+
+      // Track incidents (pass shared map and settings for errorsToOpenIncident)
+      const incident = await trackIncident(checkResult, openIncidents, settings.monitoring)
       if (incident.created) incidentsCreated++
       if (incident.resolved) incidentsResolved++
 
-      if (checkResult.statusLabel === 'Online') {
+      if (checkResult.pageStatus === 'ONLINE') {
         successCount++
-        console.log(`[Cron Uptime] OK ${checkResult.name} - ${checkResult.status} ${checkResult.responseTime}ms`)
+        console.log(`[Cron Uptime] OK ${checkResult.name} - HTTP ${checkResult.status} ${checkResult.responseTime}ms`)
       } else {
         failCount++
-        console.log(`[Cron Uptime] FAIL ${checkResult.name} - ${checkResult.statusLabel} ${checkResult.error || `HTTP ${checkResult.status}`}`)
+        const retryInfo = checkResult.retryCount ? ` (apos ${checkResult.retryCount} retry)` : ''
+        console.log(`[Cron Uptime] FAIL ${checkResult.name} - ${checkResult.pageStatus} ${checkResult.error || `HTTP ${checkResult.status}`}${retryInfo}`)
       }
     }
 
-    // 6. Cleanup old history (only once per hour, not every 5 minutes)
+    // 6. Cleanup old history + events (only once per hour)
     let cleaned = 0
+    let eventsCleaned = 0
     if (await shouldRunCleanup()) {
       cleaned = await cleanupOldHistory()
+      eventsCleaned = await cleanupOldEvents(30)
       await markCleanupDone()
-      if (cleaned > 0) {
-        console.log(`[Cron Uptime] Cleaned ${cleaned} old check_history entries`)
+      if (cleaned > 0 || eventsCleaned > 0) {
+        console.log(`[Cron Uptime] Cleaned ${cleaned} old check_history entries, ${eventsCleaned} old events`)
       }
     }
 
@@ -224,6 +269,7 @@ export async function GET(request: Request) {
       incidentsResolved,
       openIncidents: openIncidents.size,
       cleanedEntries: cleaned,
+      cleanedEvents: eventsCleaned,
       duration: `${duration}ms`,
     }
 

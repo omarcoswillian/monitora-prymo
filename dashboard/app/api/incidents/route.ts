@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getAllPages } from '@/lib/supabase-pages-store'
+import type { ErrorType, StatusLabel, PageStatus, CheckOrigin } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
-
-type ErrorType = 'HTTP_404' | 'HTTP_500' | 'TIMEOUT' | 'SOFT_404' | 'CONNECTION_ERROR' | 'UNKNOWN'
-type StatusLabel = 'Online' | 'Offline' | 'Lento' | 'Soft 404'
 
 interface IncidentEntry {
   id: string
@@ -18,7 +16,11 @@ interface IncidentEntry {
   duration: number | null
   type: ErrorType
   status: StatusLabel
+  pageStatus: PageStatus | null
   message: string
+  probableCause: string | null
+  checkOrigin: CheckOrigin
+  consecutiveFailures: number
 }
 
 function deriveStatusLabel(type: string): StatusLabel {
@@ -27,19 +29,26 @@ function deriveStatusLabel(type: string): StatusLabel {
   return 'Offline'
 }
 
+function derivePageStatus(type: string, finalStatus: string | null): PageStatus {
+  if (finalStatus) return finalStatus as PageStatus
+  if (type === 'SOFT_404') return 'OFFLINE'
+  if (type === 'SLOW') return 'LENTO'
+  if (type === 'TIMEOUT') return 'TIMEOUT'
+  if (type === 'WAF_BLOCK' || type === 'REDIRECT_LOOP') return 'BLOQUEADO'
+  return 'OFFLINE'
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const filterPageId = searchParams.get('pageId')
 
   try {
-    // Get all pages for name/client mapping (avoids failing Supabase joins)
     const pages = await getAllPages()
     const pageMap = new Map(pages.map(p => [p.id, p]))
 
-    // Query incidents without joins
     let query = supabase
       .from('incidents')
-      .select('id, page_id, type, message, started_at, resolved_at')
+      .select('id, page_id, type, message, started_at, resolved_at, probable_cause, check_origin, consecutive_failures, final_status')
       .order('started_at', { ascending: false })
       .limit(100)
 
@@ -54,7 +63,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([])
     }
 
-    const result: IncidentEntry[] = (incidents || []).map((incident) => {
+    const result: IncidentEntry[] = (incidents || []).map((incident: any) => {
       const page = pageMap.get(incident.page_id)
       const duration = incident.resolved_at
         ? new Date(incident.resolved_at).getTime() - new Date(incident.started_at).getTime()
@@ -71,7 +80,11 @@ export async function GET(request: NextRequest) {
         duration,
         type: (incident.type || 'UNKNOWN') as ErrorType,
         status: deriveStatusLabel(incident.type),
+        pageStatus: derivePageStatus(incident.type, incident.final_status),
         message: incident.message,
+        probableCause: incident.probable_cause || null,
+        checkOrigin: (incident.check_origin || 'monitor') as CheckOrigin,
+        consecutiveFailures: incident.consecutive_failures || 1,
       }
     })
 
