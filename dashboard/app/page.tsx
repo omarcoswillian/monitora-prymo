@@ -504,9 +504,6 @@ export default function Dashboard() {
   return (
     <AppShell>
       <Topbar
-        onAddClick={openCreateModal}
-        showAddButton={true}
-        showIncidentsButton={true}
         searchPlaceholder="Pesquisar paginas..."
       />
       <div className="container">
@@ -904,6 +901,11 @@ export default function Dashboard() {
           onSuccess={handleModalSuccess}
         />
       </div>
+
+      {/* Floating Action Button */}
+      <button className="fab" onClick={openCreateModal} aria-label="Adicionar pagina">
+        <Plus size={24} />
+      </button>
     </AppShell>
   );
 }

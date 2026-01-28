@@ -1,22 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { Search, Plus, AlertTriangle, RefreshCw } from 'lucide-react'
+import { Search, RefreshCw } from 'lucide-react'
 import ThemeToggle from '@/components/ThemeToggle'
 
 interface TopbarProps {
-  onAddClick?: () => void
-  showAddButton?: boolean
-  showIncidentsButton?: boolean
   searchPlaceholder?: string
   onSearch?: (query: string) => void
 }
 
 export default function Topbar({
-  onAddClick,
-  showAddButton = true,
-  showIncidentsButton = true,
   searchPlaceholder = 'Pesquisar...',
   onSearch,
 }: TopbarProps) {
@@ -68,20 +61,6 @@ export default function Topbar({
         </div>
 
         <ThemeToggle />
-
-        {showIncidentsButton && (
-          <Link href="/incidents" className="topbar-btn topbar-btn-secondary">
-            <AlertTriangle size={16} />
-            <span>Incidentes</span>
-          </Link>
-        )}
-
-        {showAddButton && onAddClick && (
-          <button onClick={onAddClick} className="topbar-btn topbar-btn-primary">
-            <Plus size={16} />
-            <span>Adicionar</span>
-          </button>
-        )}
       </div>
     </div>
   )

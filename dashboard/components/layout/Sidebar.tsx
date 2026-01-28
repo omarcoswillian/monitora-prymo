@@ -6,15 +6,14 @@ import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import {
   LayoutDashboard,
-  Users,
   AlertTriangle,
   FileText,
   Settings,
   LogOut,
-  ChevronDown,
   Menu,
   X,
   Zap,
+  User,
 } from 'lucide-react'
 
 interface NavItem {
@@ -24,13 +23,13 @@ interface NavItem {
 }
 
 const mainNavItems: NavItem[] = [
-  { label: 'Dashboard', href: '/', icon: <LayoutDashboard size={18} /> },
-  { label: 'Incidentes', href: '/incidents', icon: <AlertTriangle size={18} /> },
-  { label: 'Relatorios', href: '/reports', icon: <FileText size={18} /> },
+  { label: 'Dashboard', href: '/', icon: <LayoutDashboard size={20} /> },
+  { label: 'Incidentes', href: '/incidents', icon: <AlertTriangle size={20} /> },
+  { label: 'Relatorios', href: '/reports', icon: <FileText size={20} /> },
 ]
 
 const secondaryNavItems: NavItem[] = [
-  { label: 'Configuracoes', href: '/settings', icon: <Settings size={18} /> },
+  { label: 'Configuracoes', href: '/settings', icon: <Settings size={20} /> },
 ]
 
 export default function Sidebar() {
@@ -51,75 +50,56 @@ export default function Sidebar() {
 
   const NavContent = () => (
     <>
-      {/* Workspace Header */}
+      {/* Logo */}
       <div className="sidebar-header">
-        <div className="sidebar-workspace">
-          <div className="sidebar-workspace-icon">
-            <Zap size={20} />
-          </div>
-          <div className="sidebar-workspace-info">
-            <span className="sidebar-workspace-name">Prymo Monitora</span>
-            <span className="sidebar-workspace-type">Workspace</span>
-          </div>
-          <button className="sidebar-workspace-toggle">
-            <ChevronDown size={16} />
-          </button>
+        <div className="sidebar-logo" data-tooltip="Prymo Monitora">
+          <Zap size={20} />
         </div>
       </div>
 
       {/* Main Navigation */}
       <nav className="sidebar-nav">
-        <div className="sidebar-section">
-          <span className="sidebar-section-label">Menu</span>
-          <ul className="sidebar-menu">
-            {mainNavItems.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`sidebar-item ${isActive(item.href) ? 'sidebar-item-active' : ''}`}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <span className="sidebar-item-icon">{item.icon}</span>
-                  <span className="sidebar-item-label">{item.label}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <ul className="sidebar-menu">
+          {mainNavItems.map((item) => (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className={`sidebar-item ${isActive(item.href) ? 'sidebar-item-active' : ''}`}
+                onClick={() => setMobileOpen(false)}
+                data-tooltip={item.label}
+              >
+                <span className="sidebar-item-icon">{item.icon}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
 
-        <div className="sidebar-section">
-          <span className="sidebar-section-label">Sistema</span>
-          <ul className="sidebar-menu">
-            {secondaryNavItems.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`sidebar-item ${isActive(item.href) ? 'sidebar-item-active' : ''}`}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <span className="sidebar-item-icon">{item.icon}</span>
-                  <span className="sidebar-item-label">{item.label}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <div className="sidebar-divider" />
+
+        <ul className="sidebar-menu">
+          {secondaryNavItems.map((item) => (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className={`sidebar-item ${isActive(item.href) ? 'sidebar-item-active' : ''}`}
+                onClick={() => setMobileOpen(false)}
+                data-tooltip={item.label}
+              >
+                <span className="sidebar-item-icon">{item.icon}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       </nav>
 
       {/* User Footer */}
       <div className="sidebar-footer">
-        <div className="sidebar-user">
-          <div className="sidebar-user-avatar">
-            <Users size={16} />
-          </div>
-          <div className="sidebar-user-info">
-            <span className="sidebar-user-name">{session?.user?.name ?? 'Admin'}</span>
-            <span className="sidebar-user-email">{session?.user?.email ?? ''}</span>
-          </div>
+        <div className="sidebar-user-avatar" data-tooltip={session?.user?.name ?? 'Admin'}>
+          <User size={16} />
         </div>
         <button
           className="sidebar-logout"
-          title="Sair"
+          data-tooltip="Sair"
           onClick={handleLogout}
         >
           <LogOut size={16} />
