@@ -38,8 +38,9 @@ const handler = NextAuth({
       },
       async authorize(credentials) {
         // Re-read env vars in case they were not available at module load time
-        const email = process.env.ADMIN_EMAIL
-        const password = process.env.ADMIN_PASSWORD
+        // .trim() guards against \n or whitespace in env values (common with Vercel CLI)
+        const email = process.env.ADMIN_EMAIL?.trim()
+        const password = process.env.ADMIN_PASSWORD?.trim()
 
         if (!email || !password) {
           console.error('[NextAuth] ADMIN_EMAIL or ADMIN_PASSWORD not configured')
@@ -48,7 +49,7 @@ const handler = NextAuth({
         }
 
         if (
-          credentials?.email === email &&
+          credentials?.email?.trim() === email &&
           credentials?.password === password
         ) {
           return {
