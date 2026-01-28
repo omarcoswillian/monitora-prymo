@@ -10,6 +10,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  ReferenceLine,
   ResponsiveContainer,
 } from 'recharts'
 
@@ -29,10 +30,12 @@ interface DailyUptime {
 
 interface ResponseTimeChartProps {
   data: HourlyAvg[]
+  slaResponseTime?: number
 }
 
 interface UptimeChartProps {
   data: DailyUptime[]
+  slaUptime?: number
 }
 
 interface ChartColors {
@@ -140,7 +143,7 @@ function useChartColors(): ChartColors {
 // Chart Components
 // ============================================
 
-export function ResponseTimeChart({ data }: ResponseTimeChartProps) {
+export function ResponseTimeChart({ data, slaResponseTime }: ResponseTimeChartProps) {
   const colors = useChartColors()
 
   if (data.length === 0) {
@@ -185,6 +188,14 @@ export function ResponseTimeChart({ data }: ResponseTimeChartProps) {
               />
             }
           />
+          {slaResponseTime && (
+            <ReferenceLine
+              y={slaResponseTime}
+              stroke={colors.axis}
+              strokeDasharray="4 4"
+              label={{ value: `Meta ${slaResponseTime}ms`, position: 'right', fill: colors.axis, fontSize: 10 }}
+            />
+          )}
           <Line
             type="monotone"
             dataKey="avg"
@@ -199,7 +210,7 @@ export function ResponseTimeChart({ data }: ResponseTimeChartProps) {
   )
 }
 
-export function UptimeChart({ data }: UptimeChartProps) {
+export function UptimeChart({ data, slaUptime }: UptimeChartProps) {
   const colors = useChartColors()
 
   if (data.length === 0) {
@@ -245,6 +256,14 @@ export function UptimeChart({ data }: UptimeChartProps) {
               />
             }
           />
+          {slaUptime && (
+            <ReferenceLine
+              y={slaUptime}
+              stroke={colors.axis}
+              strokeDasharray="4 4"
+              label={{ value: `SLA ${slaUptime}%`, position: 'right', fill: colors.axis, fontSize: 10 }}
+            />
+          )}
           <Bar
             dataKey="uptime"
             fill={colors.barSuccess}

@@ -2,10 +2,13 @@
 
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ResponseTimeChart, UptimeChart } from "@/components/Charts";
 import PageFormModal from "@/components/PageFormModal";
 import ClientCards from "@/components/ClientCards";
 import AuditMetrics, { ScoreBadge } from "@/components/AuditMetrics";
+import SuggestedActions, { type SuggestedAction } from "@/components/SuggestedActions";
+import RecentFeed from "@/components/RecentFeed";
 import { AppShell, Topbar } from "@/components/layout";
 import {
   Plus,
@@ -30,6 +33,7 @@ import FilterSelect from "@/components/FilterSelect";
 
 import type { PageStatus, ErrorType, CheckOrigin } from "@/lib/types";
 import { STATUS_CONFIG, ERROR_TYPE_LABELS as SHARED_ERROR_TYPE_LABELS } from "@/lib/types";
+import { SLA_TARGETS } from "@/lib/sla-targets";
 
 type StatusLabel = "Online" | "Offline" | "Lento" | "Soft 404";
 
@@ -108,7 +112,19 @@ interface AuditData {
   apiKeyConfigured: boolean;
 }
 
-type Filter = "all" | "online" | "offline" | "slow" | "soft404" | "timeout" | "blocked";
+type Filter = "all" | "attention" | "online" | "offline" | "slow" | "soft404" | "timeout" | "blocked";
+
+interface FeedItem {
+  id: string;
+  type: string;
+  message: string;
+  pageName: string;
+  clientName: string;
+  pageId: string;
+  timestamp: string;
+  severity: "info" | "warning" | "error" | "success";
+}
+
 
 const DEFAULT_SLOW_THRESHOLD = 1500;
 
@@ -177,6 +193,7 @@ function getStatusType(
 }
 
 export default function Dashboard() {
+  const router = useRouter();
   const [status, setStatus] = useState<StatusEntry[]>([]);
   const [pages, setPages] = useState<PageEntry[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -198,6 +215,8 @@ export default function Dashboard() {
   const [runningAudit, setRunningAudit] = useState<string | null>(null);
   const [pendingAudits, setPendingAudits] = useState<Set<string>>(new Set());
   const [slowThreshold, setSlowThreshold] = useState(DEFAULT_SLOW_THRESHOLD);
+  const [feed, setFeed] = useState<FeedItem[]>([]);
+  const [feedLoading, setFeedLoading] = useState(true);
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -266,6 +285,18 @@ export default function Dashboard() {
     }
   }, []);
 
+  const fetchFeed = useCallback(async () => {
+    try {
+      const res = await fetch("/api/feed");
+      const json = await res.json();
+      setFeed(json);
+    } catch {
+      console.error("Failed to fetch feed");
+    } finally {
+      setFeedLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const init = async () => {
       await Promise.all([
@@ -275,6 +306,7 @@ export default function Dashboard() {
         fetchHistory(),
         fetchAudits(),
         fetchSettings(),
+        fetchFeed(),
       ]);
       setLoading(false);
     };
@@ -284,13 +316,15 @@ export default function Dashboard() {
     const statusInterval = setInterval(fetchStatus, 5000);
     const historyInterval = setInterval(fetchHistory, 30000);
     const auditsInterval = setInterval(fetchAudits, 60000);
+    const feedInterval = setInterval(fetchFeed, 60000);
 
     return () => {
       clearInterval(statusInterval);
       clearInterval(historyInterval);
       clearInterval(auditsInterval);
+      clearInterval(feedInterval);
     };
-  }, [fetchStatus, fetchPages, fetchClients, fetchHistory, fetchAudits, fetchSettings]);
+  }, [fetchStatus, fetchPages, fetchClients, fetchHistory, fetchAudits, fetchSettings, fetchFeed]);
 
   // Auto-trigger audits for pages without scores (runs once after load)
   const autoAuditTriggeredRef = useRef(false);
@@ -391,14 +425,182 @@ export default function Dashboard() {
     };
   }, [clientFiltered]);
 
+  // Trend indicators (Feature 2)
+  const trends = useMemo(() => {
+    // Response time trend: compare last 12h vs previous 12h
+    const rtData = history.responseTimeAvg.filter((d) => d.avg > 0);
+    const rtMid = Math.floor(rtData.length / 2);
+    const recentRt = rtData.slice(rtMid);
+    const prevRt = rtData.slice(0, rtMid);
+    const avgRecentRt = recentRt.length > 0 ? recentRt.reduce((s, d) => s + d.avg, 0) / recentRt.length : 0;
+    const avgPrevRt = prevRt.length > 0 ? prevRt.reduce((s, d) => s + d.avg, 0) / prevRt.length : 0;
+    const rtDiff = avgPrevRt > 0 ? Math.round(avgRecentRt - avgPrevRt) : 0;
+    const rtTrend = Math.abs(rtDiff) < 50 ? "stable" : rtDiff > 0 ? "up" : "down";
+
+    // Uptime trend: compare last ~3.5 days vs previous ~3.5 days
+    const uptimeData = history.uptimeDaily;
+    const uptimeMid = Math.floor(uptimeData.length / 2);
+    const recentUptime = uptimeData.slice(uptimeMid);
+    const prevUptime = uptimeData.slice(0, uptimeMid);
+    const avgRecentUp = recentUptime.length > 0 ? recentUptime.reduce((s, d) => s + d.uptime, 0) / recentUptime.length : 0;
+    const avgPrevUp = prevUptime.length > 0 ? prevUptime.reduce((s, d) => s + d.uptime, 0) / prevUptime.length : 0;
+    const uptimeDiff = avgPrevUp > 0 ? Math.round((avgRecentUp - avgPrevUp) * 10) / 10 : 0;
+    const uptimeTrend = Math.abs(uptimeDiff) < 1 ? "stable" : uptimeDiff > 0 ? "up" : "down";
+
+    // Performance trend: already from audits
+    const perfTrend = audits.averages?.trend?.performance || null;
+
+    return {
+      responseTime: { trend: rtTrend as "up" | "down" | "stable", diff: rtDiff, label: `${rtDiff > 0 ? "+" : ""}${rtDiff}ms` },
+      uptime: { trend: uptimeTrend as "up" | "down" | "stable", diff: uptimeDiff, label: `${uptimeDiff > 0 ? "+" : ""}${uptimeDiff}%` },
+      performance: { trend: perfTrend },
+    };
+  }, [history, audits.averages]);
+
+  // Suggested actions (Feature 1)
+  const suggestedActions = useMemo(() => {
+    const actions: SuggestedAction[] = [];
+    const enabledPages = mergedData.filter((p) => p.enabled && p.status);
+
+    // 1. Timeout pages
+    const timeoutPages = enabledPages.filter((p) => p.status?.pageStatus === "TIMEOUT");
+    if (timeoutPages.length > 0) {
+      actions.push({
+        id: "timeout",
+        priority: 1,
+        icon: "timeout",
+        message: `${timeoutPages.length} pagina(s) em TIMEOUT agora`,
+        detail: timeoutPages.map((p) => p.name).slice(0, 3).join(", "),
+        cta: { label: "Ver", action: "filter", payload: "timeout" },
+      });
+    }
+
+    // 2. Blocked pages
+    const blockedPages = enabledPages.filter((p) => p.status?.pageStatus === "BLOQUEADO");
+    if (blockedPages.length > 0) {
+      actions.push({
+        id: "blocked",
+        priority: 2,
+        icon: "blocked",
+        message: `${blockedPages.length} pagina(s) BLOQUEADA(S)`,
+        detail: blockedPages.map((p) => p.name).slice(0, 3).join(", "),
+        cta: { label: "Diagnosticar", action: "filter", payload: "blocked" },
+      });
+    }
+
+    // 3. Offline pages
+    const offlinePages = enabledPages.filter((p) => getStatusType(p.status) === "offline");
+    if (offlinePages.length > 0) {
+      actions.push({
+        id: "offline",
+        priority: 3,
+        icon: "offline",
+        message: `${offlinePages.length} pagina(s) OFFLINE`,
+        detail: offlinePages.map((p) => p.name).slice(0, 3).join(", "),
+        cta: { label: "Ver", action: "filter", payload: "offline" },
+      });
+    }
+
+    // 4. Performance drops (page score < average - 15)
+    const avgPerf = audits.averages?.performance;
+    if (avgPerf !== null && avgPerf !== undefined) {
+      const perfDropPages = enabledPages.filter((p) => {
+        const score = audits.latest[p.id]?.audit?.scores?.performance;
+        return score !== null && score !== undefined && score < avgPerf - 15;
+      });
+      if (perfDropPages.length > 0) {
+        actions.push({
+          id: "performance",
+          priority: 4,
+          icon: "performance",
+          message: `${perfDropPages.length} pagina(s) com queda de Performance > 15pts`,
+          detail: perfDropPages.map((p) => p.name).slice(0, 3).join(", "),
+          cta: { label: "Reauditar", action: "reaudit", payload: perfDropPages[0]?.id || "" },
+        });
+      }
+    }
+
+    // 5. Soft 404 pages
+    const soft404Pages = enabledPages.filter((p) => p.status?.errorType === "SOFT_404");
+    if (soft404Pages.length > 0) {
+      actions.push({
+        id: "soft404",
+        priority: 5,
+        icon: "soft404",
+        message: `${soft404Pages.length} pagina(s) com Soft 404 detectado`,
+        detail: soft404Pages.map((p) => p.name).slice(0, 3).join(", "),
+        cta: { label: "Ver", action: "filter", payload: "soft404" },
+      });
+    }
+
+    // 6. Extremely slow pages (> 2x threshold)
+    const verySlowPages = enabledPages.filter((p) => p.status && p.status.responseTime > slowThreshold * 2);
+    if (verySlowPages.length > 0) {
+      actions.push({
+        id: "slow",
+        priority: 6,
+        icon: "slow",
+        message: `${verySlowPages.length} pagina(s) com tempo > ${slowThreshold * 2}ms`,
+        detail: verySlowPages.map((p) => p.name).slice(0, 3).join(", "),
+        cta: { label: "Ver", action: "filter", payload: "slow" },
+      });
+    }
+
+    // 7. Low uptime last day
+    const lastDayUptime = history.uptimeDaily[history.uptimeDaily.length - 1];
+    if (lastDayUptime && lastDayUptime.uptime < 95) {
+      actions.push({
+        id: "uptime",
+        priority: 7,
+        icon: "uptime",
+        message: `Uptime abaixo de 95% nas ultimas 24h (${lastDayUptime.uptime}%)`,
+        cta: { label: "Ver incidentes", action: "navigate", payload: "/incidents" },
+      });
+    }
+
+    return actions.sort((a, b) => a.priority - b.priority).slice(0, 5);
+  }, [mergedData, audits, slowThreshold, history.uptimeDaily]);
+
+  // Attention count (Feature 3)
+  const attentionCount = useMemo(() => {
+    const avgPerf = audits.averages?.performance;
+    return clientFiltered.filter((d) => {
+      if (!d.status || !d.enabled) return false;
+      const statusType = getStatusType(d.status);
+      if (["timeout", "blocked", "offline", "soft404"].includes(statusType)) return true;
+      if (d.status.responseTime > slowThreshold * 1.5) return true;
+      if (avgPerf !== null && avgPerf !== undefined) {
+        const score = audits.latest[d.id]?.audit?.scores?.performance;
+        if (score !== null && score !== undefined && score < avgPerf - 15) return true;
+      }
+      if (d.status.consecutiveFailures && d.status.consecutiveFailures >= 2) return true;
+      return false;
+    }).length;
+  }, [clientFiltered, audits, slowThreshold]);
+
   const filtered = useMemo(() => {
     if (filter === "all") return clientFiltered;
+    if (filter === "attention") {
+      const avgPerf = audits.averages?.performance;
+      return clientFiltered.filter((d) => {
+        if (!d.status || !d.enabled) return false;
+        const statusType = getStatusType(d.status);
+        if (["timeout", "blocked", "offline", "soft404"].includes(statusType)) return true;
+        if (d.status.responseTime > slowThreshold * 1.5) return true;
+        if (avgPerf !== null && avgPerf !== undefined) {
+          const score = audits.latest[d.id]?.audit?.scores?.performance;
+          if (score !== null && score !== undefined && score < avgPerf - 15) return true;
+        }
+        if (d.status.consecutiveFailures && d.status.consecutiveFailures >= 2) return true;
+        return false;
+      });
+    }
     return clientFiltered.filter((d) => {
       if (!d.status || !d.enabled) return false;
       const statusType = getStatusType(d.status);
       return statusType === filter;
     });
-  }, [clientFiltered, filter]);
+  }, [clientFiltered, filter, audits, slowThreshold]);
 
   const toggleEnabled = async (page: PageEntry) => {
     try {
@@ -501,6 +703,17 @@ export default function Dashboard() {
 
   const hasProblems = counts.offline > 0 || counts.soft404 > 0 || counts.timeout > 0 || counts.blocked > 0;
 
+  const handleSuggestedAction = (action: SuggestedAction) => {
+    if (action.cta.action === "filter") {
+      setFilter(action.cta.payload as Filter);
+    } else if (action.cta.action === "navigate") {
+      router.push(action.cta.payload);
+    } else if (action.cta.action === "reaudit") {
+      const page = pages.find((p) => p.id === action.cta.payload);
+      if (page) handleRunAudit(page);
+    }
+  };
+
   return (
     <AppShell>
       <Topbar
@@ -515,11 +728,19 @@ export default function Dashboard() {
           </div>
         </header>
 
+        {/* Suggested Actions */}
+        <SuggestedActions
+          actions={suggestedActions}
+          onAction={handleSuggestedAction}
+        />
+
         {/* Client Cards */}
         <ClientCards
           pages={pages}
           status={status}
           uptimeDaily={history.uptimeDaily}
+          audits={audits}
+          slowThreshold={slowThreshold}
         />
 
         {/* Summary Cards */}
@@ -530,6 +751,14 @@ export default function Dashboard() {
             </div>
             <div className="card-label">Total</div>
             <div className="card-value">{counts.total}</div>
+            {trends.uptime.trend !== "stable" && (
+              <div className="card-trend">
+                <span className={`trend-badge ${trends.uptime.trend === "up" ? "trend-badge-up" : "trend-badge-down"}`}>
+                  {trends.uptime.trend === "up" ? "↑" : "↓"}
+                  <span className="trend-badge-value">Uptime {trends.uptime.label}</span>
+                </span>
+              </div>
+            )}
           </div>
           <div
             className={`card ${counts.online > 0 ? "card-highlight-ok" : ""}`}
@@ -557,6 +786,15 @@ export default function Dashboard() {
             </div>
             <div className="card-label">Lento (&gt;{slowThreshold}ms)</div>
             <div className="card-value slow">{counts.slow}</div>
+            {trends.responseTime.trend !== "stable" && (
+              <div className="card-trend">
+                <span className={`trend-badge ${trends.responseTime.trend === "up" ? "trend-badge-down" : "trend-badge-up"}`}>
+                  {trends.responseTime.trend === "up" ? "↑" : "↓"}
+                  <span className="trend-badge-value">{trends.responseTime.label}</span>
+                </span>
+              </div>
+            )}
+            <div className="card-sla">Meta: &lt;{SLA_TARGETS.responseTime}ms</div>
           </div>
           <div
             className={`card ${counts.soft404 > 0 ? "card-highlight-danger" : ""}`}
@@ -575,6 +813,7 @@ export default function Dashboard() {
             </div>
             <div className="card-label">Timeout</div>
             <div className="card-value offline">{counts.timeout}</div>
+            <div className="card-sla">Limite: &le;{SLA_TARGETS.maxTimeoutsPerDay}/dia</div>
           </div>
           <div
             className={`card ${counts.blocked > 0 ? "card-highlight-danger" : ""}`}
@@ -603,9 +842,12 @@ export default function Dashboard() {
 
         {/* Charts */}
         <div className="charts-row">
-          <ResponseTimeChart data={history.responseTimeAvg} />
-          <UptimeChart data={history.uptimeDaily} />
+          <ResponseTimeChart data={history.responseTimeAvg} slaResponseTime={SLA_TARGETS.responseTime} />
+          <UptimeChart data={history.uptimeDaily} slaUptime={SLA_TARGETS.uptime} />
         </div>
+
+        {/* Recent Feed */}
+        <RecentFeed items={feed} loading={feedLoading} />
 
         {/* Filters Row */}
         <FiltersBar>
@@ -621,9 +863,22 @@ export default function Dashboard() {
             placeholder="Todos Clientes"
           />
 
+          <FilterChip
+            active={filter === "all"}
+            onClick={() => setFilter("all")}
+          >
+            Todas
+          </FilterChip>
+          <FilterChip
+            active={filter === "attention"}
+            onClick={() => setFilter("attention")}
+            icon={<AlertTriangle size={14} />}
+            count={attentionCount > 0 ? attentionCount : undefined}
+          >
+            Atencao
+          </FilterChip>
           {(
             [
-              { key: "all", label: "Todas" },
               { key: "online", label: "Online" },
               { key: "offline", label: "Offline" },
               { key: "slow", label: "Lento" },
