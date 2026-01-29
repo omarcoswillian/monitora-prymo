@@ -61,6 +61,7 @@ const secondaryNavItems: NavItem[] = [
 export default function Sidebar() {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [gestaoOpen, setGestaoOpen] = useState(false)
   const { data: session } = useSession()
 
   const handleLogout = async () => {
@@ -102,29 +103,35 @@ export default function Sidebar() {
           ))}
 
           {/* Gestão Group with Flyout */}
-          <li className="sidebar-group">
+          <li
+            className={`sidebar-group ${gestaoOpen ? 'sidebar-group-open' : ''}`}
+            onMouseEnter={() => setGestaoOpen(true)}
+            onMouseLeave={() => setGestaoOpen(false)}
+          >
             <div
               className={`sidebar-item sidebar-group-trigger ${isGroupActive(gestaoGroup.basePath) ? 'sidebar-item-active' : ''}`}
-              data-tooltip={gestaoGroup.label}
+              data-tooltip={!gestaoOpen ? gestaoGroup.label : undefined}
             >
               <span className="sidebar-item-icon">{gestaoGroup.icon}</span>
             </div>
-            <div className="sidebar-flyout">
-              <div className="sidebar-flyout-inner">
-                <div className="sidebar-flyout-header">{gestaoGroup.label}</div>
-                {gestaoGroup.children.map((child) => (
-                  <Link
-                    key={child.href}
-                    href={child.href}
-                    className={`sidebar-flyout-item ${isActive(child.href) ? 'sidebar-flyout-item-active' : ''}`}
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    <span className="sidebar-flyout-icon">{child.icon}</span>
-                    <span className="sidebar-flyout-label">{child.label}</span>
-                  </Link>
-                ))}
+            {gestaoOpen && (
+              <div className="sidebar-flyout sidebar-flyout-visible">
+                <div className="sidebar-flyout-inner">
+                  <div className="sidebar-flyout-header">{gestaoGroup.label}</div>
+                  {gestaoGroup.children.map((child) => (
+                    <Link
+                      key={child.href}
+                      href={child.href}
+                      className={`sidebar-flyout-item ${isActive(child.href) ? 'sidebar-flyout-item-active' : ''}`}
+                      onClick={() => { setMobileOpen(false); setGestaoOpen(false) }}
+                    >
+                      <span className="sidebar-flyout-icon">{child.icon}</span>
+                      <span className="sidebar-flyout-label">{child.label}</span>
+                    </Link>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </li>
         </ul>
 

@@ -334,12 +334,18 @@ body {
   left: 100%;
   top: 0;
   min-width: 180px;
-  padding-left: 8px; /* invisible bridge over the gap */
+  padding-left: 8px;
   opacity: 0;
   pointer-events: none;
   transform: translateX(-4px);
   transition: opacity 0.15s ease, transform 0.15s ease;
   z-index: 210;
+}
+
+.sidebar-flyout-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
 }
 
 .sidebar-flyout-inner {
@@ -349,17 +355,6 @@ body {
   box-shadow: var(--shadow-lg);
   padding: 0.25rem 0;
   overflow: hidden;
-}
-
-.sidebar-group:hover .sidebar-flyout {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateX(0);
-}
-
-/* Hide default tooltip when flyout is visible */
-.sidebar-group:hover .sidebar-group-trigger[data-tooltip]::after {
-  opacity: 0;
 }
 
 .sidebar-flyout-header {
