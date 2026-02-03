@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAllPages, createPage, validatePageInput } from '@/lib/supabase-pages-store'
 import { checkAndRecord } from '@/lib/page-checker'
+import { enqueueAudit, triggerWorker } from '@/lib/audit-queue'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
@@ -63,6 +64,16 @@ export async function POST(request: Request) {
         console.log(`[Pages API] Immediate check for "${page.name}": ${result.statusLabel} ${result.responseTime}ms`)
       } catch (err) {
         console.error(`[Pages API] Immediate check failed for "${page.name}":`, err)
+      }
+    }
+
+    // Enqueue PageSpeed audit (async, non-blocking)
+    if (page.enabled) {
+      try {
+        await enqueueAudit(page.id, page.url)
+        triggerWorker()
+      } catch (err) {
+        console.error(`[Pages API] Failed to enqueue audit for "${page.name}":`, err)
       }
     }
 

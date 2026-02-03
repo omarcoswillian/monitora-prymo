@@ -66,6 +66,8 @@ interface PageEntry {
   createdAt: string;
   updatedAt: string;
   soft404Patterns?: string[];
+  auditStatus?: string | null;
+  auditError?: string | null;
 }
 
 interface Client {
@@ -1068,8 +1070,12 @@ export default function Dashboard() {
                               </div>
                             </div>
                           </div>
-                        ) : pendingAudits.has(entry.id) || runningAudit === entry.id ? (
-                          <span className="badge badge-collecting">Coletando...</span>
+                        ) : pendingAudits.has(entry.id) || runningAudit === entry.id || entry.auditStatus === 'pending' || entry.auditStatus === 'running' ? (
+                          <span className="badge badge-collecting">Auditando...</span>
+                        ) : entry.auditStatus === 'failed' ? (
+                          <span className="badge badge-error" title={entry.auditError || 'Erro na auditoria'}>Falhou</span>
+                        ) : entry.auditStatus === 'quota_blocked' ? (
+                          <span className="badge badge-warning" title={entry.auditError || 'Quota da API excedida'}>Quota excedida</span>
                         ) : entry.enabled ? (
                           <span className="badge pending">Pendente</span>
                         ) : (

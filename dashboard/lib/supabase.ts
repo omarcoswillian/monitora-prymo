@@ -81,6 +81,8 @@ export interface DbPage {
   last_error_type: string | null
   last_error_message: string | null
   last_checked_at: string | null
+  audit_status: string | null
+  audit_error: string | null
 }
 
 export interface DbCheckHistory {

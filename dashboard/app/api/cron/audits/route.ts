@@ -5,10 +5,11 @@ import type { AuditOptions } from '@/lib/pagespeed'
 import { getSettings } from '@/lib/supabase-settings-store'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+export const maxDuration = 300
 
-const MAX_AUDITS_PER_RUN = 2
-const DELAY_BETWEEN_AUDITS_MS = 2000
+const BATCH_SIZE = 5
+const DELAY_BETWEEN_AUDITS_MS = 3000
+const DELAY_BETWEEN_BATCHES_MS = 5000
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -135,52 +136,113 @@ export async function GET(request: Request) {
       return NextResponse.json(summary)
     }
 
-    // 5. Audit up to MAX_AUDITS_PER_RUN pages sequentially
-    const toAudit = pagesNeedingAudit.slice(0, MAX_AUDITS_PER_RUN)
+    // 5. Audit ALL pages in batches
+    const toAudit = pagesNeedingAudit
     let successCount = 0
     let failCount = 0
+    const errors: string[] = []
 
-    console.log(`[Cron Audits] ${pagesNeedingAudit.length} page(s) need audit, running ${toAudit.length}`)
+    console.log(`[Cron Audits] Total URLs to audit: ${toAudit.length} (batch size: ${BATCH_SIZE})`)
 
-    for (let i = 0; i < toAudit.length; i++) {
-      const page = toAudit[i]
+    for (let batchStart = 0; batchStart < toAudit.length; batchStart += BATCH_SIZE) {
+      const batch = toAudit.slice(batchStart, batchStart + BATCH_SIZE)
+      const batchNum = Math.floor(batchStart / BATCH_SIZE) + 1
+      const totalBatches = Math.ceil(toAudit.length / BATCH_SIZE)
+      console.log(`[Cron Audits] Batch ${batchNum}/${totalBatches} (${batch.length} pages)`)
 
-      try {
-        const audit = await runPageSpeedAudit(page.url, auditOptions, page.id)
-        await saveAudit(page.id, page.url, audit)
+      for (let i = 0; i < batch.length; i++) {
+        const page = batch[i]
 
-        if (audit.success) {
-          successCount++
-          console.log(`[Cron Audits] OK "${page.name}" - scores: ${JSON.stringify(audit.scores)}`)
-        } else {
+        try {
+          const audit = await runPageSpeedAudit(page.url, auditOptions, page.id)
+          await saveAudit(page.id, page.url, audit)
+
+          if (audit.success) {
+            successCount++
+            console.log(`[Cron Audits] ✓ "${page.name}" - scores: ${JSON.stringify(audit.scores)}`)
+          } else {
+            failCount++
+            const errMsg = `"${page.name}": ${audit.error}`
+            errors.push(errMsg)
+            console.log(`[Cron Audits] ✗ "${page.name}" - ${audit.error}`)
+
+            // Detect quota/key errors and fail fast
+            if (audit.error && /quota|key|403|429/i.test(audit.error)) {
+              console.error(`[Cron Audits] FATAL: API key/quota error detected, aborting`)
+              return NextResponse.json(
+                {
+                  success: false,
+                  error: `API key/quota error: ${audit.error}`,
+                  totalUrls: toAudit.length,
+                  succeeded: successCount,
+                  failed: failCount + 1,
+                  errors,
+                  timestamp: new Date().toISOString(),
+                  duration: `${Date.now() - startTime}ms`,
+                },
+                { status: 500 }
+              )
+            }
+          }
+        } catch (error) {
           failCount++
-          console.log(`[Cron Audits] FAIL "${page.name}" - ${audit.error}`)
+          const msg = error instanceof Error ? error.message : 'Unknown error'
+          errors.push(`"${page.name}": ${msg}`)
+          console.error(`[Cron Audits] ✗ ERROR "${page.name}":`, msg)
+
+          if (/quota|key|403|429/i.test(msg)) {
+            console.error(`[Cron Audits] FATAL: API key/quota error detected, aborting`)
+            return NextResponse.json(
+              {
+                success: false,
+                error: `API key/quota error: ${msg}`,
+                totalUrls: toAudit.length,
+                succeeded: successCount,
+                failed: failCount,
+                errors,
+                timestamp: new Date().toISOString(),
+                duration: `${Date.now() - startTime}ms`,
+              },
+              { status: 500 }
+            )
+          }
         }
-      } catch (error) {
-        failCount++
-        const msg = error instanceof Error ? error.message : 'Unknown error'
-        console.error(`[Cron Audits] ERROR "${page.name}":`, msg)
+
+        // Delay between audits to avoid rate limits
+        if (i < batch.length - 1) {
+          await delay(DELAY_BETWEEN_AUDITS_MS)
+        }
       }
 
-      // Delay between audits to avoid rate limits
-      if (i < toAudit.length - 1) {
-        await delay(DELAY_BETWEEN_AUDITS_MS)
+      // Delay between batches
+      if (batchStart + BATCH_SIZE < toAudit.length) {
+        console.log(`[Cron Audits] Waiting between batches...`)
+        await delay(DELAY_BETWEEN_BATCHES_MS)
       }
     }
 
     const duration = Date.now() - startTime
 
+    console.log(`[Cron Audits] === SUMMARY ===`)
+    console.log(`[Cron Audits] Total URLs: ${toAudit.length}`)
+    console.log(`[Cron Audits] Succeeded:  ${successCount}`)
+    console.log(`[Cron Audits] Failed:     ${failCount}`)
+    console.log(`[Cron Audits] Duration:   ${duration}ms`)
+    if (errors.length > 0) {
+      console.log(`[Cron Audits] Errors: ${errors.join('; ')}`)
+    }
+
     const summary = {
       success: true,
       timestamp: new Date().toISOString(),
+      totalUrls: toAudit.length,
       audited: toAudit.length,
       succeeded: successCount,
       failed: failCount,
-      pending: pagesNeedingAudit.length - toAudit.length,
+      pending: 0,
       duration: `${duration}ms`,
+      ...(errors.length > 0 && { errors }),
     }
-
-    console.log(`[Cron Audits] Completed in ${duration}ms: ${successCount} OK, ${failCount} FAIL, ${pagesNeedingAudit.length - toAudit.length} still pending`)
 
     return NextResponse.json(summary)
   } catch (error) {

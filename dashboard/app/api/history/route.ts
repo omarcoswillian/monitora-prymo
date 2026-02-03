@@ -22,6 +22,37 @@ interface CheckRow {
   page_id: string
 }
 
+const PAGE_SIZE = 1000
+
+/**
+ * Fetch all rows from a Supabase query by paginating in chunks of PAGE_SIZE.
+ * Supabase caps results at 1000 by default — this ensures we get everything.
+ */
+async function fetchAllRows(
+  baseQuery: () => ReturnType<ReturnType<typeof supabase.from>['select']>
+): Promise<CheckRow[]> {
+  const allRows: CheckRow[] = []
+  let offset = 0
+
+  while (true) {
+    const { data, error } = await baseQuery()
+      .range(offset, offset + PAGE_SIZE - 1)
+
+    if (error) {
+      console.error('Error fetching history page:', error)
+      break
+    }
+
+    const rows = (data || []) as CheckRow[]
+    allRows.push(...rows)
+
+    if (rows.length < PAGE_SIZE) break
+    offset += PAGE_SIZE
+  }
+
+  return allRows
+}
+
 function formatHourKey(date: Date, timezone: string): string {
   const parts = new Intl.DateTimeFormat('sv-SE', {
     timeZone: timezone,
@@ -48,6 +79,20 @@ function generateHourBuckets(timezone: string): string[] {
   return buckets
 }
 
+function applyPageFilter(
+  query: ReturnType<ReturnType<typeof supabase.from>['select']>,
+  pageId: string | null,
+  clientPageIds: Set<string> | null,
+) {
+  if (pageId) {
+    return query.eq('page_id', pageId)
+  }
+  if (clientPageIds && clientPageIds.size > 0) {
+    return query.in('page_id', Array.from(clientPageIds))
+  }
+  return query
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const clientFilter = searchParams.get('client')
@@ -62,7 +107,7 @@ export async function GET(request: Request) {
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
-    // If filtering by client, resolve page IDs from pages store
+    // If filtering by client, resolve page IDs
     let clientPageIds: Set<string> | null = null
     if (clientFilter && !pageId) {
       const allPages = await getAllPages()
@@ -70,42 +115,30 @@ export async function GET(request: Request) {
       clientPageIds = new Set(clientPages.map(p => p.id))
     }
 
-    // Simple query without joins
-    let query = supabase
-      .from('check_history')
-      .select('status, response_time, checked_at, page_id')
-      .gte('checked_at', sevenDaysAgo)
-      .order('checked_at')
+    // --- Query 1: Response Time (last 24h) ---
+    const responseTimeChecks = await fetchAllRows(() => {
+      const q = supabase
+        .from('check_history')
+        .select('status, response_time, checked_at, page_id')
+        .gte('checked_at', twentyFourHoursAgo)
+        .order('checked_at')
+      return applyPageFilter(q, pageId, clientPageIds)
+    })
 
-    // Filter by specific page
-    if (pageId) {
-      query = query.eq('page_id', pageId)
-    }
-
-    // Filter by client page IDs
-    if (clientPageIds && clientPageIds.size > 0) {
-      query = query.in('page_id', Array.from(clientPageIds))
-    }
-
-    const { data: history, error } = await query
-
-    if (error) {
-      console.error('Error fetching history:', error)
-      return NextResponse.json({
-        responseTimeAvg: [],
-        uptimeDaily: [],
-      })
-    }
-
-    const checks = (history || []) as CheckRow[]
+    // --- Query 2: Uptime (last 7 days) ---
+    const uptimeChecks = await fetchAllRows(() => {
+      const q = supabase
+        .from('check_history')
+        .select('status, response_time, checked_at, page_id')
+        .gte('checked_at', sevenDaysAgo)
+        .order('checked_at')
+      return applyPageFilter(q, pageId, clientPageIds)
+    })
 
     // Response time averages by hour (last 24 hours)
     const hourlyData = new Map<string, { total: number; count: number }>()
-    const recentEntries = checks.filter(
-      (e) => e.checked_at >= twentyFourHoursAgo
-    )
 
-    for (const entry of recentEntries) {
+    for (const entry of responseTimeChecks) {
       const date = new Date(entry.checked_at)
       const hourKey = formatHourKey(date, timezone)
 
@@ -128,7 +161,7 @@ export async function GET(request: Request) {
     // Uptime by day (last 7 days)
     const dailyData = new Map<string, { success: number; total: number }>()
 
-    for (const entry of checks) {
+    for (const entry of uptimeChecks) {
       const date = new Date(entry.checked_at)
       const dayKey = date.toLocaleDateString('sv-SE', { timeZone: timezone })
 

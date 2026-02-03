@@ -1376,6 +1376,16 @@ tr:hover .actions {
 }
 
 
+.badge-error {
+  background: var(--danger-bg, #fde8e8);
+  color: var(--danger, #e53e3e);
+}
+
+.badge-warning {
+  background: var(--warning-bg, #fef3cd);
+  color: var(--warning, #d69e2e);
+}
+
 /* Row urgency styles — subtle left border indicator */
 .row-urgent td:first-child {
   box-shadow: inset 3px 0 0 var(--color-error);

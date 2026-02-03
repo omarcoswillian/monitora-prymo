@@ -132,6 +132,41 @@ BEGIN
 END $$;
 
 -- ============================================
+-- Tabela: audit_jobs (fila de auditoria automática)
+-- ============================================
+CREATE TABLE IF NOT EXISTS audit_jobs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  page_id UUID NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','running','success','failed','quota_blocked')),
+  attempts INTEGER NOT NULL DEFAULT 0,
+  max_attempts INTEGER NOT NULL DEFAULT 5,
+  scheduled_for TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  started_at TIMESTAMPTZ,
+  finished_at TIMESTAMPTZ,
+  last_error TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_jobs_pending
+ON audit_jobs(scheduled_for) WHERE status IN ('pending','quota_blocked');
+
+CREATE INDEX IF NOT EXISTS idx_audit_jobs_page
+ON audit_jobs(page_id);
+
+-- Add audit_status columns to pages (for existing databases)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'pages' AND column_name = 'audit_status') THEN
+    ALTER TABLE pages ADD COLUMN audit_status TEXT DEFAULT 'none';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'pages' AND column_name = 'audit_error') THEN
+    ALTER TABLE pages ADD COLUMN audit_error TEXT DEFAULT NULL;
+  END IF;
+END $$;
+
+-- ============================================
 -- Funções de atualização automática de updated_at
 -- ============================================
 CREATE OR REPLACE FUNCTION update_updated_at()

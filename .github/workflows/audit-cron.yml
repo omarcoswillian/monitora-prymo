@@ -1,28 +1,60 @@
-name: PageSpeed Audits (every 30 min)
+name: PageSpeed Audits (daily)
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    # 08:00 America/Sao_Paulo = 11:00 UTC
+    - cron: '0 11 * * *'
   workflow_dispatch: # Allow manual trigger
+
+concurrency:
+  group: pagespeed-audits
+  cancel-in-progress: false
 
 jobs:
   pagespeed-audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 15
     steps:
       - name: Trigger PageSpeed audits
         run: |
+          echo "::group::Calling audit endpoint"
           response=$(curl -s -w "\n%{http_code}" \
+            --max-time 600 \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             "${{ secrets.MONITOR_URL }}/api/cron/audits")
 
           http_code=$(echo "$response" | tail -1)
           body=$(echo "$response" | head -n -1)
+          echo "::endgroup::"
+
+          echo "### Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$body" | jq . 2>/dev/null || echo "$body" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
           echo "HTTP Status: $http_code"
           echo "Response: $body"
 
+          # Extract counts from response
+          total=$(echo "$body" | jq -r '.totalUrls // "?"')
+          succeeded=$(echo "$body" | jq -r '.succeeded // "?"')
+          failed=$(echo "$body" | jq -r '.failed // "?"')
+
+          echo "--- Summary ---"
+          echo "Total URLs:  $total"
+          echo "Succeeded:   $succeeded"
+          echo "Failed:      $failed"
+          echo "---------------"
+
           if [ "$http_code" -ne 200 ]; then
             echo "::error::Audit cron endpoint returned HTTP $http_code"
+            exit 1
+          fi
+
+          # Fail the workflow if the API reported failure (quota/key errors)
+          success=$(echo "$body" | jq -r '.success // true')
+          if [ "$success" = "false" ]; then
+            error_msg=$(echo "$body" | jq -r '.error // "Unknown error"')
+            echo "::error::Audit failed: $error_msg"
             exit 1
           fi

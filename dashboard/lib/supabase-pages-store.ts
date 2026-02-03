@@ -13,6 +13,8 @@ export interface PageEntry {
   createdAt: string
   updatedAt: string
   soft404Patterns?: string[]
+  auditStatus?: string | null
+  auditError?: string | null
 }
 
 export type PageInput = {
@@ -43,6 +45,8 @@ function toPageEntry(db: DbPageWithClient): PageEntry {
     createdAt: db.created_at,
     updatedAt: db.updated_at,
     soft404Patterns: db.soft_404_patterns || undefined,
+    auditStatus: db.audit_status || null,
+    auditError: db.audit_error || null,
   }
 }
 
