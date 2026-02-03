@@ -122,7 +122,7 @@ export async function GET(request: Request) {
         .select('status, response_time, checked_at, page_id')
         .gte('checked_at', twentyFourHoursAgo)
         .order('checked_at')
-      return applyPageFilter(q, pageId, clientPageIds)
+      return applyPageFilter(q, pageId, clientPageIds) as ReturnType<typeof q.order>
     })
 
     // --- Query 2: Uptime (last 7 days) ---
@@ -132,7 +132,7 @@ export async function GET(request: Request) {
         .select('status, response_time, checked_at, page_id')
         .gte('checked_at', sevenDaysAgo)
         .order('checked_at')
-      return applyPageFilter(q, pageId, clientPageIds)
+      return applyPageFilter(q, pageId, clientPageIds) as ReturnType<typeof q.order>
     })
 
     // Response time averages by hour (last 24 hours)
