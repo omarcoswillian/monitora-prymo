@@ -28,9 +28,8 @@ const PAGE_SIZE = 1000
  * Fetch all rows from a Supabase query by paginating in chunks of PAGE_SIZE.
  * Supabase caps results at 1000 by default — this ensures we get everything.
  */
-async function fetchAllRows(
-  baseQuery: () => ReturnType<ReturnType<typeof supabase.from>['select']>
-): Promise<CheckRow[]> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchAllRows(baseQuery: () => any): Promise<CheckRow[]> {
   const allRows: CheckRow[] = []
   let offset = 0
 
@@ -79,8 +78,9 @@ function generateHourBuckets(timezone: string): string[] {
   return buckets
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function applyPageFilter(
-  query: ReturnType<ReturnType<typeof supabase.from>['select']>,
+  query: any,
   pageId: string | null,
   clientPageIds: Set<string> | null,
 ) {
@@ -122,7 +122,7 @@ export async function GET(request: Request) {
         .select('status, response_time, checked_at, page_id')
         .gte('checked_at', twentyFourHoursAgo)
         .order('checked_at')
-      return applyPageFilter(q, pageId, clientPageIds) as ReturnType<typeof q.order>
+      return applyPageFilter(q, pageId, clientPageIds)
     })
 
     // --- Query 2: Uptime (last 7 days) ---
@@ -132,7 +132,7 @@ export async function GET(request: Request) {
         .select('status, response_time, checked_at, page_id')
         .gte('checked_at', sevenDaysAgo)
         .order('checked_at')
-      return applyPageFilter(q, pageId, clientPageIds) as ReturnType<typeof q.order>
+      return applyPageFilter(q, pageId, clientPageIds)
     })
 
     // Response time averages by hour (last 24 hours)
