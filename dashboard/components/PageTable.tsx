@@ -49,6 +49,8 @@ interface MergedPageEntry {
   enabled: boolean
   createdAt: string
   updatedAt: string
+  specialist?: string | null
+  product?: string | null
   status?: StatusEntry
   audit?: PageAuditEntry
 }
@@ -56,6 +58,8 @@ interface MergedPageEntry {
 interface PageTableProps {
   pages: MergedPageEntry[]
   showClientColumn?: boolean
+  showSpecialistColumn?: boolean
+  showProductColumn?: boolean
   onToggleEnabled?: (page: MergedPageEntry) => void
   onEdit?: (pageId: string) => void
   onDelete?: (page: MergedPageEntry) => void
@@ -103,6 +107,8 @@ function getStatusType(entry: StatusEntry | undefined): 'online' | 'offline' | '
 export default function PageTable({
   pages,
   showClientColumn = true,
+  showSpecialistColumn = false,
+  showProductColumn = false,
   onToggleEnabled,
   onEdit,
   onDelete,
@@ -130,6 +136,8 @@ export default function PageTable({
           <tr>
             <th>Nome</th>
             <th>URL</th>
+            {showSpecialistColumn && <th>Especialista</th>}
+            {showProductColumn && <th>Produto</th>}
             <th>Status</th>
             <th>HTTP</th>
             <th>Tempo</th>
@@ -177,6 +185,12 @@ export default function PageTable({
                     <ExternalLink size={12} className="url-icon" />
                   </a>
                 </td>
+                {showSpecialistColumn && (
+                  <td>{entry.specialist || '-'}</td>
+                )}
+                {showProductColumn && (
+                  <td>{entry.product || '-'}</td>
+                )}
                 <td>
                   {!entry.enabled ? (
                     <span className="badge disabled">Pausado</span>

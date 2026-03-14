@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getPageById, updatePage, deletePage, validatePageInput } from '@/lib/supabase-pages-store'
+import { getUserContext, hasClientAccess } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,11 +9,20 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { id } = await params
     const page = await getPageById(id)
 
     if (!page) {
       return NextResponse.json({ error: 'Page not found' }, { status: 404 })
+    }
+
+    if (!hasClientAccess(ctx, page.clientId)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     return NextResponse.json(page)
@@ -30,12 +40,21 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { id } = await params
     const data = await request.json()
 
     const existing = await getPageById(id)
     if (!existing) {
       return NextResponse.json({ error: 'Page not found' }, { status: 404 })
+    }
+
+    if (!hasClientAccess(ctx, existing.clientId)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const fullData = { ...existing, ...data }
@@ -56,6 +75,8 @@ export async function PUT(
       timeout: data.timeout ?? existing.timeout,
       enabled: data.enabled ?? existing.enabled,
       soft404Patterns: data.soft404Patterns ?? existing.soft404Patterns,
+      specialistId: data.specialistId !== undefined ? data.specialistId : existing.specialistId,
+      productId: data.productId !== undefined ? data.productId : existing.productId,
     })
 
     return NextResponse.json(updated)
@@ -73,6 +94,16 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Only admins can delete pages
+    if (!ctx.isAdmin) {
+      return NextResponse.json({ error: 'Only admins can delete pages' }, { status: 403 })
+    }
+
     const { id } = await params
     const success = await deletePage(id)
 

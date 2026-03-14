@@ -194,6 +194,127 @@ CREATE TRIGGER update_settings_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ============================================
+-- Tabela: users (usuários do sistema)
+-- ============================================
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'CLIENT' CHECK (role IN ('ADMIN', 'CLIENT')),
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+CREATE TRIGGER update_users_updated_at
+  BEFORE UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================
+-- Tabela: user_clients (vínculo usuário ↔ cliente)
+-- ============================================
+CREATE TABLE IF NOT EXISTS user_clients (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'viewer' CHECK (role IN ('owner', 'viewer')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, client_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_clients_user ON user_clients(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_clients_client ON user_clients(client_id);
+
+-- ============================================
+-- Tabela: specialists (especialistas por cliente)
+-- ============================================
+CREATE TABLE IF NOT EXISTS specialists (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(client_id, slug)
+);
+
+CREATE INDEX IF NOT EXISTS idx_specialists_client ON specialists(client_id);
+
+DROP TRIGGER IF EXISTS update_specialists_updated_at ON specialists;
+CREATE TRIGGER update_specialists_updated_at
+  BEFORE UPDATE ON specialists
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================
+-- Tabela: products (produtos por especialista)
+-- ============================================
+CREATE TABLE IF NOT EXISTS products (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  specialist_id UUID NOT NULL REFERENCES specialists(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(specialist_id, slug)
+);
+
+CREATE INDEX IF NOT EXISTS idx_products_client ON products(client_id);
+CREATE INDEX IF NOT EXISTS idx_products_specialist ON products(specialist_id);
+
+DROP TRIGGER IF EXISTS update_products_updated_at ON products;
+CREATE TRIGGER update_products_updated_at
+  BEFORE UPDATE ON products
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Add specialist_id and product_id to pages (NULLABLE for backward compat)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'pages' AND column_name = 'specialist_id') THEN
+    ALTER TABLE pages ADD COLUMN specialist_id UUID REFERENCES specialists(id) ON DELETE SET NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'pages' AND column_name = 'product_id') THEN
+    ALTER TABLE pages ADD COLUMN product_id UUID REFERENCES products(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_pages_specialist ON pages(specialist_id);
+CREATE INDEX IF NOT EXISTS idx_pages_product ON pages(product_id);
+
+-- Add content monitoring rules to pages
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'pages' AND column_name = 'content_rules') THEN
+    ALTER TABLE pages ADD COLUMN content_rules JSONB DEFAULT '[]';
+  END IF;
+END $$;
+
+-- Add content check result to check_history
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'check_history' AND column_name = 'content_check_passed') THEN
+    ALTER TABLE check_history ADD COLUMN content_check_passed BOOLEAN DEFAULT NULL;
+  END IF;
+END $$;
+
+-- Add SSL monitoring fields to pages
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'pages' AND column_name = 'ssl_expires_at') THEN
+    ALTER TABLE pages ADD COLUMN ssl_expires_at TIMESTAMPTZ DEFAULT NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'pages' AND column_name = 'ssl_status') THEN
+    ALTER TABLE pages ADD COLUMN ssl_status TEXT DEFAULT NULL;
+  END IF;
+END $$;
+
+-- ============================================
 -- Row Level Security (RLS) - Opcional
 -- Descomente se quiser usar autenticação Supabase
 -- ============================================

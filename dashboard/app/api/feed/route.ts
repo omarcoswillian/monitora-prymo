@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getAllPages } from '@/lib/supabase-pages-store'
+import { getUserContext, filterByClientAccess } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,23 +25,42 @@ const EVENT_TYPE_MESSAGES: Record<string, { message: string; severity: FeedItem[
 
 export async function GET() {
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const pages = await getAllPages()
-    const pageMap = new Map(pages.map(p => [p.id, p]))
+    const accessiblePages = filterByClientAccess(pages, ctx)
+    const pageMap = new Map(accessiblePages.map(p => [p.id, p]))
+    const allowedPageIds = Array.from(pageMap.keys())
+
+    if (allowedPageIds.length === 0) {
+      return NextResponse.json([])
+    }
 
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const feedItems: FeedItem[] = []
 
+    // Build queries with page_id filter for CLIENT users
+    const pageFilter = !ctx.isAdmin
+      ? (q: any) => q.in('page_id', allowedPageIds)
+      : (q: any) => q
+
     // 1. Recent incidents opened
-    const { data: openedIncidents } = await supabase
-      .from('incidents')
-      .select('id, page_id, type, message, started_at')
-      .gte('started_at', since)
-      .order('started_at', { ascending: false })
-      .limit(15)
+    const { data: openedIncidents } = await pageFilter(
+      supabase
+        .from('incidents')
+        .select('id, page_id, type, message, started_at')
+        .gte('started_at', since)
+        .order('started_at', { ascending: false })
+        .limit(15)
+    )
 
     if (openedIncidents) {
       for (const inc of openedIncidents) {
         const page = pageMap.get(inc.page_id)
+        if (!page && !ctx.isAdmin) continue
         feedItems.push({
           id: `inc-open-${inc.id}`,
           type: 'incident_opened',
@@ -55,17 +75,20 @@ export async function GET() {
     }
 
     // 2. Recent incidents resolved
-    const { data: resolvedIncidents } = await supabase
-      .from('incidents')
-      .select('id, page_id, type, resolved_at')
-      .not('resolved_at', 'is', null)
-      .gte('resolved_at', since)
-      .order('resolved_at', { ascending: false })
-      .limit(10)
+    const { data: resolvedIncidents } = await pageFilter(
+      supabase
+        .from('incidents')
+        .select('id, page_id, type, resolved_at')
+        .not('resolved_at', 'is', null)
+        .gte('resolved_at', since)
+        .order('resolved_at', { ascending: false })
+        .limit(10)
+    )
 
     if (resolvedIncidents) {
       for (const inc of resolvedIncidents) {
         const page = pageMap.get(inc.page_id)
+        if (!page && !ctx.isAdmin) continue
         feedItems.push({
           id: `inc-res-${inc.id}`,
           type: 'incident_resolved',
@@ -80,17 +103,20 @@ export async function GET() {
     }
 
     // 3. Recent notable events
-    const { data: events } = await supabase
-      .from('page_events')
-      .select('id, page_id, event_type, message, created_at')
-      .in('event_type', ['status_changed', 'page_marked_offline', 'page_marked_online', 'block_detected'])
-      .gte('created_at', since)
-      .order('created_at', { ascending: false })
-      .limit(15)
+    const { data: events } = await pageFilter(
+      supabase
+        .from('page_events')
+        .select('id, page_id, event_type, message, created_at')
+        .in('event_type', ['status_changed', 'page_marked_offline', 'page_marked_online', 'block_detected'])
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(15)
+    )
 
     if (events) {
       for (const evt of events) {
         const page = pageMap.get(evt.page_id)
+        if (!page && !ctx.isAdmin) continue
         const config = EVENT_TYPE_MESSAGES[evt.event_type]
         feedItems.push({
           id: `evt-${evt.id}`,

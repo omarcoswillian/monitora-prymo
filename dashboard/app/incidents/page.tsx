@@ -10,6 +10,7 @@ import FilterSelect from '@/components/FilterSelect'
 import { AppShell } from '@/components/layout'
 import type { PageStatus, ErrorType, CheckOrigin } from '@/lib/types'
 import { STATUS_CONFIG } from '@/lib/types'
+import { useUserRole } from '@/lib/use-user-role'
 
 type StatusLabel = 'Online' | 'Offline' | 'Lento' | 'Soft 404'
 
@@ -74,6 +75,7 @@ const ERROR_TYPE_LABELS: Record<string, string> = {
 }
 
 export default function IncidentsPage() {
+  const { isAdmin } = useUserRole()
   const [incidents, setIncidents] = useState<IncidentEntry[]>([])
   const [pages, setPages] = useState<PageEntry[]>([])
   const [clients, setClients] = useState<Client[]>([])
@@ -274,15 +276,17 @@ export default function IncidentsPage() {
 
       {/* Filters */}
       <FiltersBar>
-        <FilterSelect
-          value={selectedClient}
-          onChange={(value) => setSelectedClient(value)}
-          options={uniqueClients.map(client => ({
-            value: client,
-            label: client,
-          }))}
-          placeholder="Todos os clientes"
-        />
+        {isAdmin && (
+          <FilterSelect
+            value={selectedClient}
+            onChange={(value) => setSelectedClient(value)}
+            options={uniqueClients.map(client => ({
+              value: client,
+              label: client,
+            }))}
+            placeholder="Todos os clientes"
+          />
+        )}
 
         {([
           { key: 'all', label: 'Todos' },

@@ -1,0 +1,22 @@
+services:
+  evolution-api:
+    image: atendai/evolution-api:v1.8.3
+    container_name: evolution-api
+    ports:
+      - "8080:8080"
+    volumes:
+      - evolution_data:/evolution/instances
+    environment:
+      AUTHENTICATION_TYPE: apikey
+      AUTHENTICATION_API_KEY: prymo-evo-key-2024
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "true"
+      DEL_INSTANCE: "false"
+      STORE_MESSAGES: "false"
+      STORE_MESSAGE_UP: "false"
+      STORE_CONTACTS: "false"
+      STORE_CHATS: "false"
+      DATABASE_ENABLED: "false"
+      REDIS_ENABLED: "false"
+
+volumes:
+  evolution_data:

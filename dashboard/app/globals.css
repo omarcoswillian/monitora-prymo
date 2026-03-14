@@ -5355,3 +5355,68 @@ tr:hover .actions {
     flex-direction: column;
   }
 }
+
+/* ====== Access Card (copy credentials) ====== */
+.access-card {
+  background: var(--color-surface-elevated, #1a2332);
+  border: 1px solid var(--color-success, #22c55e);
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.access-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-success, #22c55e);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.access-card-content {
+  background: var(--color-surface, #0f1923);
+  border-radius: 6px;
+  padding: 1rem;
+  font-family: monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: var(--color-text, #e2e8f0);
+  margin: 0;
+}
+
+.form-success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  color: var(--color-success, #22c55e);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+/* ====== Wizard list items ====== */
+.wizard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.wizard-list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-surface, #0f1923);
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.wizard-list-check {
+  color: var(--color-success, #22c55e);
+  flex-shrink: 0;
+}

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { getUserContext } from '@/lib/auth'
+import { getPageById } from '@/lib/supabase-pages-store'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,6 +31,11 @@ interface ComparisonResult {
 
 export async function GET(request: Request) {
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const pageId = searchParams.get('pageId')
 
@@ -37,6 +44,14 @@ export async function GET(request: Request) {
         { error: 'pageId is required' },
         { status: 400 }
       )
+    }
+
+    // Validate page access
+    if (!ctx.isAdmin) {
+      const page = await getPageById(pageId)
+      if (!page || !ctx.clientIds.includes(page.clientId)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
     }
 
     // Fetch page current status + latest audit concurrently

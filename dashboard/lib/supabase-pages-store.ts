@@ -15,6 +15,13 @@ export interface PageEntry {
   soft404Patterns?: string[]
   auditStatus?: string | null
   auditError?: string | null
+  specialistId?: string | null
+  specialist?: string | null
+  productId?: string | null
+  product?: string | null
+  contentRules?: Array<{ text: string; type: string }> | null
+  sslExpiresAt?: string | null
+  sslStatus?: string | null
 }
 
 export type PageInput = {
@@ -25,14 +32,21 @@ export type PageInput = {
   timeout: number
   enabled: boolean
   soft404Patterns?: string[]
+  specialistId?: string | null
+  productId?: string | null
+  contentRules?: Array<{ text: string; type: string }> | null
 }
 
-interface DbPageWithClient extends DbPage {
+interface DbPageWithJoins extends DbPage {
   clients: { name: string } | null
+  specialists: { name: string } | null
+  products: { name: string } | null
 }
+
+const SELECT_FIELDS = '*, clients(name), specialists(name), products(name)'
 
 // Convert DB format to app format
-function toPageEntry(db: DbPageWithClient): PageEntry {
+function toPageEntry(db: DbPageWithJoins): PageEntry {
   return {
     id: db.id,
     clientId: db.client_id,
@@ -47,13 +61,20 @@ function toPageEntry(db: DbPageWithClient): PageEntry {
     soft404Patterns: db.soft_404_patterns || undefined,
     auditStatus: db.audit_status || null,
     auditError: db.audit_error || null,
+    specialistId: db.specialist_id || null,
+    specialist: db.specialists?.name || null,
+    productId: db.product_id || null,
+    product: db.products?.name || null,
+    contentRules: db.content_rules || null,
+    sslExpiresAt: db.ssl_expires_at || null,
+    sslStatus: db.ssl_status || null,
   }
 }
 
 export async function getAllPages(): Promise<PageEntry[]> {
   const { data, error } = await supabase
     .from('pages')
-    .select('*, clients(name)')
+    .select(SELECT_FIELDS)
     .order('name')
 
   if (error) {
@@ -67,7 +88,7 @@ export async function getAllPages(): Promise<PageEntry[]> {
 export async function getPageById(id: string): Promise<PageEntry | null> {
   const { data, error } = await supabase
     .from('pages')
-    .select('*, clients(name)')
+    .select(SELECT_FIELDS)
     .eq('id', id)
     .single()
 
@@ -82,7 +103,7 @@ export async function getPageById(id: string): Promise<PageEntry | null> {
 export async function getPagesByClientId(clientId: string): Promise<PageEntry[]> {
   const { data, error } = await supabase
     .from('pages')
-    .select('*, clients(name)')
+    .select(SELECT_FIELDS)
     .eq('client_id', clientId)
     .order('name')
 
@@ -98,18 +119,24 @@ export async function createPage(input: PageInput): Promise<PageEntry> {
   // Ensure client exists and get its ID
   const client = await ensureClientExists(input.client)
 
+  const insertData: Record<string, unknown> = {
+    client_id: client.id,
+    name: input.name,
+    url: input.url,
+    interval: input.interval,
+    timeout: input.timeout,
+    enabled: input.enabled,
+    soft_404_patterns: input.soft404Patterns || null,
+    content_rules: input.contentRules || [],
+  }
+
+  if (input.specialistId) insertData.specialist_id = input.specialistId
+  if (input.productId) insertData.product_id = input.productId
+
   const { data, error } = await supabase
     .from('pages')
-    .insert({
-      client_id: client.id,
-      name: input.name,
-      url: input.url,
-      interval: input.interval,
-      timeout: input.timeout,
-      enabled: input.enabled,
-      soft_404_patterns: input.soft404Patterns || null,
-    })
-    .select('*, clients(name)')
+    .insert(insertData)
+    .select(SELECT_FIELDS)
     .single()
 
   if (error) {
@@ -132,12 +159,15 @@ export async function updatePage(id: string, input: Partial<PageInput>): Promise
   if (input.timeout !== undefined) updateData.timeout = input.timeout
   if (input.enabled !== undefined) updateData.enabled = input.enabled
   if (input.soft404Patterns !== undefined) updateData.soft_404_patterns = input.soft404Patterns
+  if (input.specialistId !== undefined) updateData.specialist_id = input.specialistId || null
+  if (input.productId !== undefined) updateData.product_id = input.productId || null
+  if (input.contentRules !== undefined) updateData.content_rules = input.contentRules || []
 
   const { data, error } = await supabase
     .from('pages')
     .update(updateData)
     .eq('id', id)
-    .select('*, clients(name)')
+    .select(SELECT_FIELDS)
     .single()
 
   if (error) {

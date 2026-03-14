@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getAllPages } from '@/lib/supabase-pages-store'
+import { getUserContext, filterByClientAccess } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,6 +11,8 @@ interface RankedPage {
   pageName: string
   clientName: string
   clientId: string
+  specialistName: string | null
+  productName: string | null
   performanceScore: number | null
   uptime: number
   avgResponseTime: number
@@ -46,11 +49,19 @@ function computeHealthScore(
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const clientFilter = searchParams.get('client')
+  const specialistFilter = searchParams.get('specialist')
+  const productFilter = searchParams.get('product')
   const periodDays = parseInt(searchParams.get('period') || '7', 10)
 
   try {
-    const pages = await getAllPages()
-    const enabledPages = pages.filter(p => p.enabled)
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const allPages = await getAllPages()
+    const accessiblePages = filterByClientAccess(allPages, ctx)
+    const enabledPages = accessiblePages.filter(p => p.enabled)
 
     if (enabledPages.length === 0) {
       return NextResponse.json({ ranking: [], clients: [], daily: [], incidentsByType: [] })
@@ -65,10 +76,11 @@ export async function GET(request: Request) {
     }
     const clients = Array.from(clientSet.entries()).map(([id, name]) => ({ id, name }))
 
-    // Filter pages by client if specified
-    const targetPages = clientFilter
-      ? enabledPages.filter(p => p.client === clientFilter)
-      : enabledPages
+    // Filter pages by client, specialist, product if specified
+    let targetPages = enabledPages
+    if (clientFilter) targetPages = targetPages.filter(p => p.client === clientFilter)
+    if (specialistFilter) targetPages = targetPages.filter(p => p.specialist === specialistFilter)
+    if (productFilter) targetPages = targetPages.filter(p => p.product === productFilter)
 
     if (targetPages.length === 0) {
       return NextResponse.json({ ranking: [], clients, daily: [], incidentsByType: [] })
@@ -214,6 +226,8 @@ export async function GET(request: Request) {
         pageName: page.name,
         clientName: page.client,
         clientId: page.clientId,
+        specialistName: page.specialist || null,
+        productName: page.product || null,
         performanceScore: performance,
         uptime,
         avgResponseTime,

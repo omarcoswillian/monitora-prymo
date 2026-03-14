@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
+// Routes that CLIENT users cannot access
+const adminOnlyRoutes = ['/gestao', '/settings', '/clientes']
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -26,6 +29,18 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('callbackUrl', pathname)
     return NextResponse.redirect(loginUrl)
+  }
+
+  // Role-based route protection
+  const role = token.role as string | undefined
+
+  if (role !== 'ADMIN') {
+    const isAdminOnly = adminOnlyRoutes.some(route => pathname.startsWith(route))
+
+    if (isAdminOnly) {
+      // Redirect CLIENT users to dashboard home
+      return NextResponse.redirect(new URL('/', request.url))
+    }
   }
 
   return NextResponse.next()

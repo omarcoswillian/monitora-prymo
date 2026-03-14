@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { getUserContext } from '@/lib/auth'
+import { getPageById } from '@/lib/supabase-pages-store'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,6 +26,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Validate page access
+    if (!ctx.isAdmin) {
+      const page = await getPageById(pageId)
+      if (!page || !ctx.clientIds.includes(page.clientId)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
     // Get audits for the specified page, last 30 entries
     const { data: audits, error } = await supabase
       .from('audit_history')

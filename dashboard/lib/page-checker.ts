@@ -3,6 +3,17 @@ import type { PageStatus, ErrorType, CheckOrigin, StatusLabel } from './types'
 import { pageStatusToStatusLabel, STATUS_CONFIG } from './types'
 import { logEvent } from './event-logger'
 import type { MonitoringSettings } from './supabase-settings-store'
+import { checkSSL } from './ssl-checker'
+import {
+  sendWhatsAppMessage,
+  isWhatsAppConfigured,
+  alertPageDown,
+  alertPageRecovered,
+  alertSSLExpiring,
+  alertContentMismatch,
+  alertPageSlow,
+} from './whatsapp-notifier'
+import { captureIncidentScreenshot } from './screenshot-capture'
 export type { ErrorType, StatusLabel, PageStatus, CheckOrigin }
 
 export interface PageToCheck {
@@ -12,6 +23,7 @@ export interface PageToCheck {
   url: string
   timeout: number
   soft404Patterns?: string[] | null
+  contentRules?: Array<{ text: string; type: string }> | null
 }
 
 export interface CheckResult {
@@ -29,6 +41,8 @@ export interface CheckResult {
   blocked?: boolean
   blockReason?: string
   retryCount?: number
+  contentCheckPassed?: boolean | null
+  contentCheckFailed?: string[]
 }
 
 // ===== CONSTANTS =====
@@ -243,11 +257,37 @@ export async function checkPage(page: PageToCheck, slowThreshold?: number): Prom
       blockInfo = detectBlock(httpStatus, bodySnippet, response.url, page.url)
     }
 
-    const success = response.ok && !isSoft404 && !blockInfo.blocked
+    // Content monitoring: check if required texts are present
+    let contentCheckPassed: boolean | null = null
+    let contentCheckFailed: string[] = []
+    let isContentMismatch = false
+
+    if (response.ok && !isSoft404 && !blockInfo.blocked && page.contentRules && page.contentRules.length > 0) {
+      const bodyLower = bodySnippet.toLowerCase()
+      contentCheckPassed = true
+      for (const rule of page.contentRules) {
+        const textLower = rule.text.toLowerCase()
+        const found = bodyLower.includes(textLower)
+        if (rule.type === 'contains' && !found) {
+          contentCheckPassed = false
+          contentCheckFailed.push(rule.text)
+        } else if (rule.type === 'not_contains' && found) {
+          contentCheckPassed = false
+          contentCheckFailed.push(`NOT: ${rule.text}`)
+        }
+      }
+      if (!contentCheckPassed) {
+        isContentMismatch = true
+      }
+    }
+
+    const success = response.ok && !isSoft404 && !blockInfo.blocked && !isContentMismatch
     const effectiveThreshold = slowThreshold ?? DEFAULT_SLOW_THRESHOLD_MS
     const pageStatus = determinePageStatus(success, httpStatus, responseTime, isSoft404, blockInfo.blocked, effectiveThreshold)
     const statusLabel = pageStatusToStatusLabel(pageStatus)
-    const errorType = determineErrorType(httpStatus, undefined, isSoft404, blockInfo.blocked, blockInfo.errorType)
+    const errorType = isContentMismatch
+      ? 'CONTENT_MISMATCH' as ErrorType
+      : determineErrorType(httpStatus, undefined, isSoft404, blockInfo.blocked, blockInfo.errorType)
 
     return {
       pageId: page.id,
@@ -256,12 +296,15 @@ export async function checkPage(page: PageToCheck, slowThreshold?: number): Prom
       status: httpStatus,
       responseTime,
       success,
+      error: isContentMismatch ? `Conteudo ausente: ${contentCheckFailed.join(', ')}` : undefined,
       pageStatus,
       statusLabel,
       errorType,
       checkOrigin: 'monitor',
       blocked: blockInfo.blocked || undefined,
       blockReason: blockInfo.reason || undefined,
+      contentCheckPassed,
+      contentCheckFailed: contentCheckFailed.length > 0 ? contentCheckFailed : undefined,
     }
   } catch (error) {
     const responseTime = Date.now() - startTime
@@ -410,6 +453,7 @@ export async function writeCheckHistory(result: CheckResult): Promise<void> {
     checked_at: new Date().toISOString(),
     check_origin: result.checkOrigin,
     status_label: result.pageStatus,
+    content_check_passed: result.contentCheckPassed ?? null,
   })
 
   if (error) {
@@ -420,6 +464,14 @@ export async function writeCheckHistory(result: CheckResult): Promise<void> {
 // ===== INCIDENT TRACKING =====
 
 function getIncidentInfo(result: CheckResult): { type: string; message: string } {
+  if (result.errorType === 'CONTENT_MISMATCH') {
+    const missing = result.contentCheckFailed?.join(', ') || 'conteudo esperado'
+    return {
+      type: 'CONTENT_MISMATCH',
+      message: `Conteudo ausente em ${result.url}: ${missing}`,
+    }
+  }
+
   if (result.pageStatus === 'LENTO') {
     return {
       type: 'SLOW',
@@ -514,6 +566,31 @@ export async function trackIncident(
           httpStatus: result.status,
         }, result.checkOrigin)
       } catch { /* fire-and-forget */ }
+
+      // Screenshot capture (fire-and-forget)
+      if (data) {
+        try {
+          captureIncidentScreenshot(result.pageId, result.url, data.id)
+        } catch { /* fire-and-forget */ }
+      }
+
+      // WhatsApp notification
+      if (isWhatsAppConfigured()) {
+        try {
+          const clientName = result.name.match(/^\[(.+?)\]/)?.[1] || 'Desconhecido'
+          const pageName = result.name.replace(/^\[.+?\]\s*/, '')
+          let alertMsg: string
+
+          if (result.errorType === 'CONTENT_MISMATCH') {
+            alertMsg = alertContentMismatch(pageName, clientName, result.url, result.contentCheckFailed || [])
+          } else if (result.pageStatus === 'LENTO') {
+            alertMsg = alertPageSlow(pageName, clientName, result.url, result.responseTime)
+          } else {
+            alertMsg = alertPageDown(pageName, clientName, result.url, type, result.error)
+          }
+          sendWhatsAppMessage({ message: alertMsg })
+        } catch { /* fire-and-forget */ }
+      }
     }
 
     return { created: true, resolved: false }
@@ -547,6 +624,15 @@ export async function trackIncident(
         responseTime: result.responseTime,
       }, result.checkOrigin)
     } catch { /* fire-and-forget */ }
+
+    // WhatsApp notification: recovered
+    if (isWhatsAppConfigured()) {
+      try {
+        const clientName = result.name.match(/^\[(.+?)\]/)?.[1] || 'Desconhecido'
+        const pageName = result.name.replace(/^\[.+?\]\s*/, '')
+        sendWhatsAppMessage({ message: alertPageRecovered(pageName, clientName, result.url) })
+      } catch { /* fire-and-forget */ }
+    }
 
     return { created: false, resolved: true }
   }
@@ -589,5 +675,44 @@ export async function checkAndRecord(
   await writeCheckHistory(result)
   await updatePageStatus(result)
   await trackIncident(result, undefined, monitoringSettings)
+
+  // SSL check (non-blocking, fire-and-forget)
+  try {
+    if (page.url.startsWith('https://')) {
+      const ssl = await checkSSL(page.url)
+      await supabase
+        .from('pages')
+        .update({
+          ssl_expires_at: ssl.expiresAt,
+          ssl_status: ssl.status,
+        })
+        .eq('id', page.id)
+
+      if (ssl.status === 'expiring_soon' || ssl.status === 'expired') {
+        const eventType = ssl.status === 'expiring_soon' ? 'ssl_expiring_soon' : 'ssl_expired'
+        const message = ssl.status === 'expiring_soon'
+          ? `Certificado SSL expira em ${ssl.daysRemaining} dias`
+          : 'Certificado SSL expirado!'
+
+        logEvent(
+          page.id,
+          eventType as any,
+          message,
+          { daysRemaining: ssl.daysRemaining, expiresAt: ssl.expiresAt },
+        )
+
+        // WhatsApp notification for SSL
+        if (isWhatsAppConfigured()) {
+          const clientName = page.clientName
+          sendWhatsAppMessage({
+            message: alertSSLExpiring(page.name, clientName, page.url, ssl.daysRemaining || 0, ssl.expiresAt || ''),
+          })
+        }
+      }
+    }
+  } catch {
+    // SSL check failure should not affect the main check
+  }
+
   return result
 }

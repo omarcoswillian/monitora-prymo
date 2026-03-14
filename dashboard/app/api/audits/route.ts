@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getAllPages } from '@/lib/supabase-pages-store'
+import { getUserContext, filterByClientAccess } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -201,7 +202,24 @@ export async function GET(request: Request) {
   const pageIdsParam = searchParams.get('pageIds')
 
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const latest = await getLatestAudits()
+
+    // Filter audits by client access
+    if (!ctx.isAdmin) {
+      const allPages = await getAllPages()
+      const accessiblePages = filterByClientAccess(allPages, ctx)
+      const accessibleIds = new Set(accessiblePages.map(p => p.id))
+      for (const key of latest.keys()) {
+        if (!accessibleIds.has(key)) {
+          latest.delete(key)
+        }
+      }
+    }
 
     // Convert Map to object for JSON response
     const latestObj: Record<string, PageAuditEntry> = {}
@@ -209,7 +227,7 @@ export async function GET(request: Request) {
       latestObj[pageId] = entry
     })
 
-    // Calculate averages for specified pages or all
+    // Calculate averages for specified pages or all (already filtered)
     const pageIds = pageIdsParam ? pageIdsParam.split(',') : Array.from(latest.keys())
     const averages = await calculateAverages(pageIds)
 

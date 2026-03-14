@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAllAIReports, getAIReportById } from '@/lib/supabase-ai-reports-store'
+import { getUserContext } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,12 +26,39 @@ export async function GET(request: Request) {
   const id = searchParams.get('id')
 
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     // If specific report requested by ID, return its content
     if (id) {
       const report = await getAIReportById(id)
 
       if (!report) {
         return NextResponse.json({ error: 'Report not found' }, { status: 404 })
+      }
+
+      // CLIENT users can only see reports for their clients
+      if (!ctx.isAdmin && report.clientName) {
+        // We need to check if this report's client matches the user's clients
+        // Report has clientName, we need to match by client_id through the store
+        // For simplicity, filter by clientName in the accessible clients list
+        const { getAllClients } = await import('@/lib/supabase-clients-store')
+        const allClients = await getAllClients()
+        const allowedClientNames = new Set(
+          allClients
+            .filter(c => ctx.clientIds.includes(c.id))
+            .map(c => c.name)
+        )
+        if (!allowedClientNames.has(report.clientName)) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        }
+      }
+
+      // CLIENT users cannot see global reports
+      if (!ctx.isAdmin && report.type === 'global') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
 
       return NextResponse.json({
@@ -47,15 +75,29 @@ export async function GET(request: Request) {
     // List all reports from Supabase
     const aiReports = await getAllAIReports()
 
-    const reports: ReportSummary[] = aiReports
-      .filter(r => r.status === 'completed')
-      .map(r => ({
-        id: r.id,
-        week: getWeekFromDate(r.createdAt),
-        client: r.clientName || 'Global',
-        type: r.type,
-        createdAt: r.createdAt,
-      }))
+    let filteredReports = aiReports.filter(r => r.status === 'completed')
+
+    // CLIENT users: filter to their client's reports only
+    if (!ctx.isAdmin) {
+      const { getAllClients } = await import('@/lib/supabase-clients-store')
+      const allClients = await getAllClients()
+      const allowedClientNames = new Set(
+        allClients
+          .filter(c => ctx.clientIds.includes(c.id))
+          .map(c => c.name)
+      )
+      filteredReports = filteredReports.filter(r =>
+        r.type === 'client' && r.clientName && allowedClientNames.has(r.clientName)
+      )
+    }
+
+    const reports: ReportSummary[] = filteredReports.map(r => ({
+      id: r.id,
+      week: getWeekFromDate(r.createdAt),
+      client: r.clientName || 'Global',
+      type: r.type,
+      createdAt: r.createdAt,
+    }))
 
     return NextResponse.json({ reports })
   } catch (error) {

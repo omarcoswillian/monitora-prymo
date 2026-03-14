@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { runPageSpeedAudit, saveAudit } from '@/lib/pagespeed'
+import { getUserContext } from '@/lib/auth'
+import { getPageById } from '@/lib/supabase-pages-store'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // Allow up to 60 seconds for PageSpeed API
@@ -30,6 +32,11 @@ function checkRateLimit(pageId: string): { limited: boolean; remainingSeconds: n
 
 export async function POST(request: Request) {
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
     const { pageId, url } = body
 
@@ -38,6 +45,14 @@ export async function POST(request: Request) {
         { error: 'pageId and url are required' },
         { status: 400 }
       )
+    }
+
+    // Validate page access
+    if (!ctx.isAdmin) {
+      const page = await getPageById(pageId)
+      if (!page || !ctx.clientIds.includes(page.clientId)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
     }
 
     // Check rate limit

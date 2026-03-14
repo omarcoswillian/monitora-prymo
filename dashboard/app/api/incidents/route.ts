@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getAllPages } from '@/lib/supabase-pages-store'
 import type { ErrorType, StatusLabel, PageStatus, CheckOrigin } from '@/lib/types'
+import { getUserContext, filterByClientAccess } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,6 +11,8 @@ interface IncidentEntry {
   pageId: string
   pageName: string
   clientName: string
+  specialistName: string | null
+  productName: string | null
   url: string
   startedAt: string
   endedAt: string | null
@@ -43,8 +46,15 @@ export async function GET(request: NextRequest) {
   const filterPageId = searchParams.get('pageId')
 
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const pages = await getAllPages()
-    const pageMap = new Map(pages.map(p => [p.id, p]))
+    const accessiblePages = filterByClientAccess(pages, ctx)
+    const pageMap = new Map(accessiblePages.map(p => [p.id, p]))
+    const allowedPageIds = new Set(accessiblePages.map(p => p.id))
 
     let query = supabase
       .from('incidents')
@@ -53,7 +63,14 @@ export async function GET(request: NextRequest) {
       .limit(100)
 
     if (filterPageId) {
+      // Validate access to the requested page
+      if (!allowedPageIds.has(filterPageId)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
       query = query.eq('page_id', filterPageId)
+    } else if (!ctx.isAdmin) {
+      // CLIENT users: filter to their pages only
+      query = query.in('page_id', Array.from(allowedPageIds))
     }
 
     const { data: incidents, error } = await query
@@ -63,30 +80,34 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([])
     }
 
-    const result: IncidentEntry[] = (incidents || []).map((incident: any) => {
-      const page = pageMap.get(incident.page_id)
-      const duration = incident.resolved_at
-        ? new Date(incident.resolved_at).getTime() - new Date(incident.started_at).getTime()
-        : null
+    const result: IncidentEntry[] = (incidents || [])
+      .filter((incident: any) => pageMap.has(incident.page_id))
+      .map((incident: any) => {
+        const page = pageMap.get(incident.page_id)
+        const duration = incident.resolved_at
+          ? new Date(incident.resolved_at).getTime() - new Date(incident.started_at).getTime()
+          : null
 
-      return {
-        id: incident.id,
-        pageId: incident.page_id,
-        pageName: page?.name || 'Unknown',
-        clientName: page?.client || 'Unknown',
-        url: page?.url || '',
-        startedAt: incident.started_at,
-        endedAt: incident.resolved_at,
-        duration,
-        type: (incident.type || 'UNKNOWN') as ErrorType,
-        status: deriveStatusLabel(incident.type),
-        pageStatus: derivePageStatus(incident.type, incident.final_status),
-        message: incident.message,
-        probableCause: incident.probable_cause || null,
-        checkOrigin: (incident.check_origin || 'monitor') as CheckOrigin,
-        consecutiveFailures: incident.consecutive_failures || 1,
-      }
-    })
+        return {
+          id: incident.id,
+          pageId: incident.page_id,
+          pageName: page?.name || 'Unknown',
+          clientName: page?.client || 'Unknown',
+          specialistName: page?.specialist || null,
+          productName: page?.product || null,
+          url: page?.url || '',
+          startedAt: incident.started_at,
+          endedAt: incident.resolved_at,
+          duration,
+          type: (incident.type || 'UNKNOWN') as ErrorType,
+          status: deriveStatusLabel(incident.type),
+          pageStatus: derivePageStatus(incident.type, incident.final_status),
+          message: incident.message,
+          probableCause: incident.probable_cause || null,
+          checkOrigin: (incident.check_origin || 'monitor') as CheckOrigin,
+          consecutiveFailures: incident.consecutive_failures || 1,
+        }
+      })
 
     return NextResponse.json(result)
   } catch (error) {
@@ -97,6 +118,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Only admins can manually create incidents
+    if (!ctx.isAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const body = await request.json()
 
     const { data, error } = await supabase
@@ -123,6 +154,16 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Only admins can resolve incidents manually
+    if (!ctx.isAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const body = await request.json()
     const { id } = body
 

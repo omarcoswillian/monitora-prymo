@@ -2,14 +2,22 @@ import { NextResponse } from 'next/server'
 import { getAllPages, createPage, validatePageInput } from '@/lib/supabase-pages-store'
 import { checkAndRecord } from '@/lib/page-checker'
 import { enqueueAudit, triggerWorker } from '@/lib/audit-queue'
+import { getUserContext, filterByClientAccess, hasClientAccess } from '@/lib/auth'
+import { getClientByName } from '@/lib/supabase-clients-store'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
 
 export async function GET() {
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const pages = await getAllPages()
-    return NextResponse.json(pages)
+    const filtered = filterByClientAccess(pages, ctx)
+    return NextResponse.json(filtered)
   } catch (error) {
     console.error('Error fetching pages:', error)
     return NextResponse.json(
@@ -21,6 +29,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const data = await request.json()
     const validation = validatePageInput(data)
 
@@ -31,6 +44,17 @@ export async function POST(request: Request) {
       )
     }
 
+    // CLIENT users can only create pages for their own clients
+    if (!ctx.isAdmin) {
+      const client = await getClientByName(data.client.trim())
+      if (!client || !hasClientAccess(ctx, client.id)) {
+        return NextResponse.json(
+          { error: 'You can only create pages for your own client' },
+          { status: 403 }
+        )
+      }
+    }
+
     const page = await createPage({
       client: data.client.trim(),
       name: data.name.trim(),
@@ -39,6 +63,8 @@ export async function POST(request: Request) {
       timeout: data.timeout,
       enabled: data.enabled,
       soft404Patterns: data.soft404Patterns,
+      specialistId: data.specialistId || null,
+      productId: data.productId || null,
     })
 
     // Immediate check: run BEFORE responding so check_history exists when frontend refreshes
@@ -52,6 +78,7 @@ export async function POST(request: Request) {
           url: page.url,
           timeout: page.timeout,
           soft404Patterns: page.soft404Patterns,
+          contentRules: page.contentRules,
         })
         firstCheck = {
           status: result.status,

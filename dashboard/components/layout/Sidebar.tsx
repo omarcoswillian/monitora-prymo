@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
@@ -20,7 +20,9 @@ import {
   Activity,
   ShieldAlert,
   TrendingUp,
+  Users,
 } from 'lucide-react'
+import { useUserRole } from '@/lib/use-user-role'
 
 interface NavItem {
   label: string
@@ -51,6 +53,7 @@ const gestaoGroup: NavGroup = {
     { label: 'Performance', href: '/gestao/performance', icon: <Activity size={16} /> },
     { label: 'Riscos', href: '/gestao/riscos', icon: <ShieldAlert size={16} /> },
     { label: 'Evolucao', href: '/gestao/evolucao', icon: <TrendingUp size={16} /> },
+    { label: 'Mes a Mes', href: '/gestao/comparacao', icon: <BarChart3 size={16} /> },
   ],
 }
 
@@ -62,7 +65,14 @@ export default function Sidebar() {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [gestaoOpen, setGestaoOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const { data: session } = useSession()
+  const { isAdmin: _isAdmin, userName } = useUserRole()
+
+  // Prevent hydration mismatch: only show role-based items after mount
+  const isAdmin = mounted && _isAdmin
+
+  useEffect(() => { setMounted(true) }, [])
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: '/login' })
@@ -102,43 +112,60 @@ export default function Sidebar() {
             </li>
           ))}
 
-          {/* Gestão Group with Flyout */}
-          <li
-            className={`sidebar-group ${gestaoOpen ? 'sidebar-group-open' : ''}`}
-            onMouseEnter={() => setGestaoOpen(true)}
-            onMouseLeave={() => setGestaoOpen(false)}
-          >
-            <div
-              className={`sidebar-item sidebar-group-trigger ${isGroupActive(gestaoGroup.basePath) ? 'sidebar-item-active' : ''}`}
-              data-tooltip={!gestaoOpen ? gestaoGroup.label : undefined}
+          {/* Clientes - Admin only */}
+          {isAdmin && (
+            <li>
+              <Link
+                href="/clientes"
+                className={`sidebar-item ${isActive('/clientes') ? 'sidebar-item-active' : ''}`}
+                onClick={() => setMobileOpen(false)}
+                data-tooltip="Clientes"
+              >
+                <span className="sidebar-item-icon"><Users size={20} /></span>
+              </Link>
+            </li>
+          )}
+
+          {/* Gestão Group with Flyout - Admin only */}
+          {isAdmin && (
+            <li
+              className={`sidebar-group ${gestaoOpen ? 'sidebar-group-open' : ''}`}
+              onMouseEnter={() => setGestaoOpen(true)}
+              onMouseLeave={() => setGestaoOpen(false)}
             >
-              <span className="sidebar-item-icon">{gestaoGroup.icon}</span>
-            </div>
-            {gestaoOpen && (
-              <div className="sidebar-flyout sidebar-flyout-visible">
-                <div className="sidebar-flyout-inner">
-                  <div className="sidebar-flyout-header">{gestaoGroup.label}</div>
-                  {gestaoGroup.children.map((child) => (
-                    <Link
-                      key={child.href}
-                      href={child.href}
-                      className={`sidebar-flyout-item ${isActive(child.href) ? 'sidebar-flyout-item-active' : ''}`}
-                      onClick={() => { setMobileOpen(false); setGestaoOpen(false) }}
-                    >
-                      <span className="sidebar-flyout-icon">{child.icon}</span>
-                      <span className="sidebar-flyout-label">{child.label}</span>
-                    </Link>
-                  ))}
-                </div>
+              <div
+                className={`sidebar-item sidebar-group-trigger ${isGroupActive(gestaoGroup.basePath) ? 'sidebar-item-active' : ''}`}
+                data-tooltip={!gestaoOpen ? gestaoGroup.label : undefined}
+              >
+                <span className="sidebar-item-icon">{gestaoGroup.icon}</span>
               </div>
-            )}
-          </li>
+              {gestaoOpen && (
+                <div className="sidebar-flyout sidebar-flyout-visible">
+                  <div className="sidebar-flyout-inner">
+                    <div className="sidebar-flyout-header">{gestaoGroup.label}</div>
+                    {gestaoGroup.children.map((child) => (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        className={`sidebar-flyout-item ${isActive(child.href) ? 'sidebar-flyout-item-active' : ''}`}
+                        onClick={() => { setMobileOpen(false); setGestaoOpen(false) }}
+                      >
+                        <span className="sidebar-flyout-icon">{child.icon}</span>
+                        <span className="sidebar-flyout-label">{child.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </li>
+          )}
         </ul>
 
         <div className="sidebar-divider" />
 
+        {/* Secondary Navigation - Admin only items */}
         <ul className="sidebar-menu">
-          {secondaryNavItems.map((item) => (
+          {isAdmin && secondaryNavItems.map((item) => (
             <li key={item.href}>
               <Link
                 href={item.href}
@@ -155,7 +182,7 @@ export default function Sidebar() {
 
       {/* User Footer */}
       <div className="sidebar-footer">
-        <div className="sidebar-user-avatar" data-tooltip={session?.user?.name ?? 'Admin'}>
+        <div className="sidebar-user-avatar" data-tooltip={userName}>
           <User size={16} />
         </div>
         <button

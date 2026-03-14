@@ -6,6 +6,7 @@ import { getSettings } from '@/lib/supabase-settings-store'
 import { DEFAULT_SLOW_THRESHOLD_MS } from '@/lib/page-checker'
 import type { PageStatus, ErrorType, StatusLabel, CheckOrigin } from '@/lib/types'
 import { pageStatusToStatusLabel, STATUS_CONFIG } from '@/lib/types'
+import { getUserContext, filterByClientAccess } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,11 +42,16 @@ function incidentTypeToPageStatus(type: string): PageStatus {
 
 export async function GET() {
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const settings = await getSettings()
     const slowThreshold = settings.monitoring.slowThreshold
 
-    const pages = await getAllPages()
-    const enabledPages = pages.filter(p => p.enabled)
+    const allPages = await getAllPages()
+    const enabledPages = filterByClientAccess(allPages, ctx).filter(p => p.enabled)
 
     if (enabledPages.length === 0) {
       return NextResponse.json([])

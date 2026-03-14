@@ -8,6 +8,8 @@ import Breadcrumbs from '@/components/Breadcrumbs'
 import PageStatusCard from '@/components/PageStatusCard'
 import RedirectChain from '@/components/RedirectChain'
 import LastKnownCause from '@/components/LastKnownCause'
+import MultiRegionCheck from '@/components/MultiRegionCheck'
+import LinkChecker from '@/components/LinkChecker'
 import ComparisonCard from '@/components/ComparisonCard'
 import EventTimeline from '@/components/EventTimeline'
 import { ResponseTimeChart, UptimeChart } from '@/components/Charts'
@@ -49,6 +51,7 @@ interface StatusEntry {
 interface PageEntry {
   id: string
   client: string
+  clientId: string
   name: string
   url: string
   interval: number
@@ -56,6 +59,13 @@ interface PageEntry {
   enabled: boolean
   createdAt: string
   updatedAt: string
+  specialistId?: string | null
+  specialist?: string | null
+  productId?: string | null
+  product?: string | null
+  contentRules?: Array<{ text: string; type: string }> | null
+  sslExpiresAt?: string | null
+  sslStatus?: string | null
 }
 
 interface HistoryData {
@@ -378,6 +388,8 @@ export default function PageDetailPage() {
         <Breadcrumbs
           items={[
             { label: page.client, href: `/clients/${encodeURIComponent(page.client)}` },
+            ...(page.specialist ? [{ label: page.specialist }] : []),
+            ...(page.product ? [{ label: page.product }] : []),
             { label: page.name },
           ]}
         />
@@ -418,6 +430,38 @@ export default function PageDetailPage() {
       {/* Redirect Chain */}
       {pageStatus?.redirectChain && pageStatus.redirectChain.length > 1 && (
         <RedirectChain chain={pageStatus.redirectChain} />
+      )}
+
+      {/* Multi-Region Check */}
+      <MultiRegionCheck pageId={pageId as string} />
+
+      {/* Link & Checkout Checker */}
+      <LinkChecker pageId={pageId as string} />
+
+      {/* SSL & Content Monitoring */}
+      {(page.sslStatus || (page.contentRules && page.contentRules.length > 0)) && (
+        <div className="cards" style={{ marginBottom: '1.5rem' }}>
+          {page.sslStatus && (
+            <div className={`card ${page.sslStatus === 'valid' ? 'card-highlight-ok' : page.sslStatus === 'expiring_soon' ? 'card-highlight-warning' : 'card-highlight-danger'}`}>
+              <div className="card-label">Certificado SSL</div>
+              <div className={`card-value ${page.sslStatus === 'valid' ? 'online' : page.sslStatus === 'expiring_soon' ? 'slow' : 'offline'}`}>
+                {page.sslStatus === 'valid' ? 'Valido' : page.sslStatus === 'expiring_soon' ? 'Expirando' : page.sslStatus === 'expired' ? 'Expirado' : 'Erro'}
+              </div>
+              {page.sslExpiresAt && (
+                <div className="form-hint">
+                  Expira em {new Date(page.sslExpiresAt).toLocaleDateString('pt-BR')}
+                </div>
+              )}
+            </div>
+          )}
+          {page.contentRules && page.contentRules.length > 0 && (
+            <div className="card">
+              <div className="card-label">Regras de Conteudo</div>
+              <div className="card-value">{page.contentRules.length}</div>
+              <div className="form-hint">texto(s) monitorado(s)</div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Charts */}

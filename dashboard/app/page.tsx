@@ -26,6 +26,10 @@ import {
   XCircle,
   Timer,
   ShieldAlert,
+  Users,
+  Package,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import FiltersBar from "@/components/FiltersBar";
 import FilterChip from "@/components/FilterChip";
@@ -34,6 +38,7 @@ import FilterSelect from "@/components/FilterSelect";
 import type { PageStatus, ErrorType, CheckOrigin } from "@/lib/types";
 import { STATUS_CONFIG, ERROR_TYPE_LABELS as SHARED_ERROR_TYPE_LABELS } from "@/lib/types";
 import { SLA_TARGETS } from "@/lib/sla-targets";
+import { useUserRole } from "@/lib/use-user-role";
 
 type StatusLabel = "Online" | "Offline" | "Lento" | "Soft 404";
 
@@ -58,6 +63,7 @@ interface StatusEntry {
 interface PageEntry {
   id: string;
   client: string;
+  clientId: string;
   name: string;
   url: string;
   interval: number;
@@ -68,6 +74,10 @@ interface PageEntry {
   soft404Patterns?: string[];
   auditStatus?: string | null;
   auditError?: string | null;
+  specialistId?: string | null;
+  specialist?: string | null;
+  productId?: string | null;
+  product?: string | null;
 }
 
 interface Client {
@@ -196,6 +206,7 @@ function getStatusType(
 
 export default function Dashboard() {
   const router = useRouter();
+  const { isAdmin } = useUserRole();
   const [status, setStatus] = useState<StatusEntry[]>([]);
   const [pages, setPages] = useState<PageEntry[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -212,6 +223,8 @@ export default function Dashboard() {
   const [tableClientFilter, setTableClientFilter] = useState<string | null>(
     null,
   );
+  const [tableSpecialistFilter, setTableSpecialistFilter] = useState<string | null>(null);
+  const [tableProductFilter, setTableProductFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [runningAudit, setRunningAudit] = useState<string | null>(null);
@@ -391,6 +404,19 @@ export default function Dashboard() {
     return clientNames.sort();
   }, [pages]);
 
+  const uniqueSpecialists = useMemo(() => {
+    let filtered = pages;
+    if (tableClientFilter) filtered = filtered.filter((p) => p.client === tableClientFilter);
+    return Array.from(new Set(filtered.map((p) => p.specialist).filter(Boolean) as string[])).sort();
+  }, [pages, tableClientFilter]);
+
+  const uniqueProducts = useMemo(() => {
+    let filtered = pages;
+    if (tableClientFilter) filtered = filtered.filter((p) => p.client === tableClientFilter);
+    if (tableSpecialistFilter) filtered = filtered.filter((p) => p.specialist === tableSpecialistFilter);
+    return Array.from(new Set(filtered.map((p) => p.product).filter(Boolean) as string[])).sort();
+  }, [pages, tableClientFilter, tableSpecialistFilter]);
+
   // Merge status with pages data (match by pageId)
   const mergedData = useMemo(() => {
     return pages.map((page) => {
@@ -408,9 +434,12 @@ export default function Dashboard() {
 
   // Filter by client (table only - does not affect charts/metrics)
   const clientFiltered = useMemo(() => {
-    if (!tableClientFilter) return mergedData;
-    return mergedData.filter((d) => d.client === tableClientFilter);
-  }, [mergedData, tableClientFilter]);
+    let result = mergedData;
+    if (tableClientFilter) result = result.filter((d) => d.client === tableClientFilter);
+    if (tableSpecialistFilter) result = result.filter((d) => d.specialist === tableSpecialistFilter);
+    if (tableProductFilter) result = result.filter((d) => d.product === tableProductFilter);
+    return result;
+  }, [mergedData, tableClientFilter, tableSpecialistFilter, tableProductFilter]);
 
   const counts = useMemo(() => {
     const enabledWithStatus = clientFiltered
@@ -603,6 +632,39 @@ export default function Dashboard() {
       return statusType === filter;
     });
   }, [clientFiltered, filter, audits, slowThreshold]);
+
+  // Build hierarchy: Client → Specialist → Product → Pages
+  const hierarchy = useMemo(() => {
+    type MergedEntry = (typeof filtered)[0];
+    const clientMap = new Map<string, Map<string, Map<string, MergedEntry[]>>>();
+
+    for (const entry of filtered) {
+      const clientName = entry.client || "Sem cliente";
+      const specName = entry.specialist || "Sem especialista";
+      const prodName = entry.product || "Geral";
+
+      if (!clientMap.has(clientName)) clientMap.set(clientName, new Map());
+      const specMap = clientMap.get(clientName)!;
+      if (!specMap.has(specName)) specMap.set(specName, new Map());
+      const prodMap = specMap.get(specName)!;
+      if (!prodMap.has(prodName)) prodMap.set(prodName, []);
+      prodMap.get(prodName)!.push(entry);
+    }
+
+    return Array.from(clientMap.entries()).map(([clientName, specMap]) => ({
+      clientName,
+      specialists: Array.from(specMap.entries()).map(([specName, prodMap]) => ({
+        name: specName,
+        products: Array.from(prodMap.entries()).map(([prodName, pages]) => ({
+          name: prodName,
+          pages,
+        })),
+      })),
+      totalPages: Array.from(specMap.values()).reduce(
+        (sum, pm) => sum + Array.from(pm.values()).reduce((s, p) => s + p.length, 0), 0
+      ),
+    }));
+  }, [filtered]);
 
   const toggleEnabled = async (page: PageEntry) => {
     try {
@@ -853,17 +915,50 @@ export default function Dashboard() {
 
         {/* Filters Row */}
         <FiltersBar>
-          <FilterSelect
-            value={tableClientFilter || ""}
-            onChange={(value) =>
-              setTableClientFilter(value === "" ? null : value)
-            }
-            options={uniqueClients.map((client) => ({
-              value: client,
-              label: client,
-            }))}
-            placeholder="Todos Clientes"
-          />
+          {isAdmin && (
+            <FilterSelect
+              value={tableClientFilter || ""}
+              onChange={(value) => {
+                setTableClientFilter(value === "" ? null : value);
+                setTableSpecialistFilter(null);
+                setTableProductFilter(null);
+              }}
+              options={uniqueClients.map((client) => ({
+                value: client,
+                label: client,
+              }))}
+              placeholder="Todos Clientes"
+            />
+          )}
+
+          {uniqueSpecialists.length > 0 && (
+            <FilterSelect
+              value={tableSpecialistFilter || ""}
+              onChange={(value) => {
+                setTableSpecialistFilter(value === "" ? null : value);
+                setTableProductFilter(null);
+              }}
+              options={uniqueSpecialists.map((s) => ({
+                value: s,
+                label: s,
+              }))}
+              placeholder="Todos Especialistas"
+            />
+          )}
+
+          {uniqueProducts.length > 0 && (
+            <FilterSelect
+              value={tableProductFilter || ""}
+              onChange={(value) =>
+                setTableProductFilter(value === "" ? null : value)
+              }
+              options={uniqueProducts.map((p) => ({
+                value: p,
+                label: p,
+              }))}
+              placeholder="Todos Produtos"
+            />
+          )}
 
           <FilterChip
             active={filter === "all"}
@@ -899,260 +994,133 @@ export default function Dashboard() {
           ))}
         </FiltersBar>
 
-        <div className="table-container">
-          {filtered.length === 0 ? (
-            <div className="empty">
-              {pages.length === 0
-                ? "Nenhuma pagina monitorada. Adicione uma para comecar."
-                : "Nenhuma pagina corresponde ao filtro selecionado."}
+        {/* Hierarchical View: Client → Specialist → Product → Pages */}
+        {filtered.length === 0 ? (
+          <div className="empty">
+            {pages.length === 0
+              ? "Nenhuma pagina monitorada. Adicione uma para comecar."
+              : "Nenhuma pagina corresponde ao filtro selecionado."}
+          </div>
+        ) : (
+          hierarchy.map((clientGroup) => (
+            <div key={clientGroup.clientName} className="settings-section" style={{ marginBottom: "1rem" }}>
+              <div className="settings-section-header">
+                <Globe size={20} />
+                <div style={{ flex: 1 }}>
+                  <h3>
+                    <Link href={`/clients/${encodeURIComponent(clientGroup.clientName)}`} className="page-name-link">
+                      {clientGroup.clientName}
+                    </Link>
+                  </h3>
+                  <p>{clientGroup.specialists.length} especialista(s) · {clientGroup.totalPages} pagina(s)</p>
+                </div>
+              </div>
+              <div className="settings-section-content">
+                {clientGroup.specialists.map((spec) => (
+                  <div key={spec.name} style={{ marginBottom: "1.5rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                      <Users size={16} />
+                      <strong>{spec.name}</strong>
+                    </div>
+
+                    {spec.products.map((prod) => (
+                      <div key={prod.name} style={{ marginLeft: "1.5rem", marginBottom: "1rem" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                          <Package size={14} />
+                          <span>{prod.name}</span>
+                          <span className="form-hint">({prod.pages.length})</span>
+                        </div>
+
+                        <div className="table-container">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Pagina</th>
+                                <th>URL</th>
+                                <th>Status</th>
+                                <th>Tempo</th>
+                                <th>Scores</th>
+                                <th>Acoes</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {prod.pages.map((entry) => {
+                                const statusType =
+                                  entry.status && entry.enabled
+                                    ? getStatusType(entry.status)
+                                    : entry.enabled ? "pending" : "disabled";
+                                const isUrgent = ["offline", "soft404", "timeout", "blocked"].includes(statusType);
+                                const isWarning = statusType === "slow";
+                                const auditScores = entry.audit?.audit?.scores;
+
+                                return (
+                                  <tr key={entry.id} className={`${isUrgent ? "row-urgent" : ""} ${isWarning ? "row-warning" : ""}`}>
+                                    <td>
+                                      <Link href={`/pages/${entry.id}`} className="page-name-link">
+                                        {entry.name}
+                                      </Link>
+                                    </td>
+                                    <td>
+                                      <a href={entry.url} target="_blank" rel="noopener noreferrer" className="url-link">
+                                        <span className="url">{entry.url}</span>
+                                        <ExternalLink size={12} className="url-icon" />
+                                      </a>
+                                    </td>
+                                    <td>
+                                      {!entry.enabled ? (
+                                        <span className="badge disabled">Pausado</span>
+                                      ) : !entry.status ? (
+                                        <span className="badge pending">Aguardando</span>
+                                      ) : (
+                                        <span className={`badge badge-${statusType}`}>
+                                          {entry.status.pageStatus
+                                            ? (STATUS_CONFIG[entry.status.pageStatus]?.label || entry.status.statusLabel)
+                                            : entry.status.statusLabel}
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td>
+                                      <span className={`time ${entry.status && entry.status.responseTime > slowThreshold ? "time-slow" : ""}`}>
+                                        {entry.status ? `${entry.status.responseTime}ms` : "-"}
+                                      </span>
+                                    </td>
+                                    <td>
+                                      {auditScores ? (
+                                        <div className="scores-cell">
+                                          <ScoreBadge score={auditScores.performance} label="Perf" />
+                                          <ScoreBadge score={auditScores.seo} label="SEO" />
+                                        </div>
+                                      ) : (
+                                        <span className="score-badge score-na">-</span>
+                                      )}
+                                    </td>
+                                    <td>
+                                      <div className="actions">
+                                        <Link href={`/pages/${entry.id}`} className="btn btn-small btn-icon" title="Ver detalhes">
+                                          <ExternalLink size={14} />
+                                        </Link>
+                                        <button onClick={() => toggleEnabled(entry)} className="btn btn-small btn-icon" title={entry.enabled ? "Pausar" : "Ativar"}>
+                                          {entry.enabled ? <Pause size={14} /> : <Play size={14} />}
+                                        </button>
+                                        <button onClick={() => handleDelete(entry)} disabled={deleting === entry.id} className="btn btn-small btn-icon btn-danger" title="Excluir">
+                                          {deleting === entry.id ? "..." : <Trash2 size={14} />}
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>URL</th>
-                  <th>Status</th>
-                  <th>HTTP</th>
-                  <th>Tempo</th>
-                  <th>Scores</th>
-                  <th>Checagem</th>
-                  <th>Acoes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((entry) => {
-                  const statusType =
-                    entry.status && entry.enabled
-                      ? getStatusType(entry.status)
-                      : entry.enabled
-                        ? "pending"
-                        : "disabled";
-
-                  const isUrgent =
-                    statusType === "offline" || statusType === "soft404" || statusType === "timeout" || statusType === "blocked";
-                  const isWarning = statusType === "slow";
-                  const auditScores = entry.audit?.audit?.scores;
-
-                  return (
-                    <tr
-                      key={entry.id}
-                      className={`
-                      ${isUrgent ? "row-urgent" : ""}
-                      ${isWarning ? "row-warning" : ""}
-                    `}
-                    >
-                      <td>
-                        <div className="page-name-cell">
-                          <Link
-                            href={`/pages/${entry.id}`}
-                            className="page-name-link"
-                          >
-                            {entry.name}
-                          </Link>
-                          <Link
-                            href={`/clients/${encodeURIComponent(entry.client)}`}
-                            className="client-name-link"
-                          >
-                            {entry.client}
-                          </Link>
-                        </div>
-                      </td>
-                      <td>
-                        <a
-                          href={entry.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="url-link"
-                        >
-                          <span className="url">{entry.url}</span>
-                          <ExternalLink size={12} className="url-icon" />
-                        </a>
-                      </td>
-                      <td>
-                        {!entry.enabled ? (
-                          <span className="badge disabled">Pausado</span>
-                        ) : !entry.status ? (
-                          <span className="badge pending">
-                            Aguardando checagem
-                          </span>
-                        ) : (
-                          <div className="status-cell">
-                            <span className={`badge badge-${statusType}`}>
-                              {entry.status.pageStatus
-                                ? (STATUS_CONFIG[entry.status.pageStatus]?.label || entry.status.statusLabel)
-                                : entry.status.statusLabel}
-                            </span>
-                            {entry.status.errorType && (
-                              <span
-                                className={`error-badge error-badge-${statusType}`}
-                                title={
-                                  ERROR_TYPE_LABELS[entry.status.errorType]
-                                    ?.tooltip
-                                }
-                              >
-                                {
-                                  ERROR_TYPE_LABELS[entry.status.errorType]
-                                    ?.label
-                                }
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        {entry.status?.error && (
-                          <div className="error-text">{entry.status.error}</div>
-                        )}
-                      </td>
-                      <td>
-                        <span
-                          className={`http-code ${entry.status?.httpStatus && entry.status.httpStatus >= 400 ? "http-error" : ""}`}
-                        >
-                          {entry.status?.httpStatus ?? "-"}
-                        </span>
-                      </td>
-                      <td>
-                        <span
-                          className={`time ${entry.status && entry.status.responseTime > slowThreshold ? "time-slow" : ""}`}
-                        >
-                          {entry.status
-                            ? `${entry.status.responseTime}ms`
-                            : "-"}
-                        </span>
-                      </td>
-                      <td>
-                        {auditScores ? (
-                          <div className="audit-popover">
-                            <div className="scores-cell">
-                              <ScoreBadge
-                                score={auditScores.performance}
-                                label="Performance"
-                              />
-                              <ScoreBadge
-                                score={auditScores.accessibility}
-                                label="Acessibilidade"
-                              />
-                              <ScoreBadge
-                                score={auditScores.bestPractices}
-                                label="Best Practices"
-                              />
-                              <ScoreBadge score={auditScores.seo} label="SEO" />
-                            </div>
-                            <div className="audit-popover-content">
-                              <div className="audit-popover-row">
-                                <span className="audit-popover-label">
-                                  Performance
-                                </span>
-                                <span className="audit-popover-value">
-                                  {auditScores.performance ?? "-"}
-                                </span>
-                              </div>
-                              <div className="audit-popover-row">
-                                <span className="audit-popover-label">
-                                  Acessibilidade
-                                </span>
-                                <span className="audit-popover-value">
-                                  {auditScores.accessibility ?? "-"}
-                                </span>
-                              </div>
-                              <div className="audit-popover-row">
-                                <span className="audit-popover-label">
-                                  Best Practices
-                                </span>
-                                <span className="audit-popover-value">
-                                  {auditScores.bestPractices ?? "-"}
-                                </span>
-                              </div>
-                              <div className="audit-popover-row">
-                                <span className="audit-popover-label">SEO</span>
-                                <span className="audit-popover-value">
-                                  {auditScores.seo ?? "-"}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        ) : pendingAudits.has(entry.id) || runningAudit === entry.id || entry.auditStatus === 'pending' || entry.auditStatus === 'running' ? (
-                          <span className="badge badge-collecting">Auditando...</span>
-                        ) : entry.auditStatus === 'failed' ? (
-                          <span className="badge badge-error" title={entry.auditError || 'Erro na auditoria'}>Falhou</span>
-                        ) : entry.auditStatus === 'quota_blocked' ? (
-                          <span className="badge badge-warning" title={entry.auditError || 'Quota da API excedida'}>Quota excedida</span>
-                        ) : entry.enabled ? (
-                          <span className="badge pending">Pendente</span>
-                        ) : (
-                          <span className="score-badge score-na">-</span>
-                        )}
-                      </td>
-                      <td>
-                        <span className="last-check">
-                          {entry.status?.lastCheckedAt
-                            ? formatTimeAgo(entry.status.lastCheckedAt)
-                            : "-"}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="actions">
-                          <Link
-                            href={`/pages/${entry.id}`}
-                            className="btn btn-small btn-icon"
-                            title="Ver detalhes"
-                          >
-                            <ExternalLink size={14} />
-                          </Link>
-                          <button
-                            onClick={() => handleRunAudit(entry)}
-                            disabled={runningAudit === entry.id || !entry.enabled}
-                            className={`btn btn-small btn-icon btn-audit ${runningAudit === entry.id ? "running" : ""}`}
-                            title={
-                              audits.apiKeyConfigured
-                                ? "Rodar auditoria"
-                                : "API key nao configurada"
-                            }
-                          >
-                            {runningAudit === entry.id ? (
-                              "..."
-                            ) : (
-                              <BarChart3 size={14} />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => toggleEnabled(entry)}
-                            className="btn btn-small btn-icon"
-                            title={entry.enabled ? "Pausar" : "Ativar"}
-                          >
-                            {entry.enabled ? (
-                              <Pause size={14} />
-                            ) : (
-                              <Play size={14} />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => openEditModal(entry.id)}
-                            className="btn btn-small btn-icon"
-                            title="Editar"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(entry)}
-                            disabled={deleting === entry.id}
-                            className="btn btn-small btn-icon btn-danger"
-                            title="Excluir"
-                          >
-                            {deleting === entry.id ? (
-                              "..."
-                            ) : (
-                              <Trash2 size={14} />
-                            )}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
+          ))
+        )}
 
         <PageFormModal
           mode={modalMode}
@@ -1164,9 +1132,11 @@ export default function Dashboard() {
       </div>
 
       {/* Floating Action Button */}
-      <button className="fab" onClick={openCreateModal} aria-label="Adicionar pagina">
-        <Plus size={24} />
-      </button>
+      {isAdmin && (
+        <button className="fab" onClick={openCreateModal} aria-label="Adicionar pagina">
+          <Plus size={24} />
+        </button>
+      )}
     </AppShell>
   );
 }

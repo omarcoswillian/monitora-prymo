@@ -13,6 +13,7 @@ import {
   updateAIReport,
 } from '@/lib/supabase-ai-reports-store'
 import { getSettings } from '@/lib/supabase-settings-store'
+import { getUserContext } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,6 +25,16 @@ interface GenerateRequest {
 
 export async function POST(request: Request) {
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Only admins can generate AI reports
+    if (!ctx.isAdmin) {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+    }
+
     const body = (await request.json()) as GenerateRequest
 
     // Validar parametros
@@ -127,6 +138,15 @@ export async function POST(request: Request) {
 // Endpoint para listar clientes disponiveis
 export async function GET() {
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (!ctx.isAdmin) {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+    }
+
     const clients = await getAvailableClients()
     const hasApiKey = !!process.env.ANTHROPIC_API_KEY
 

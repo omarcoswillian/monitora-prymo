@@ -1,5 +1,4 @@
 import * as cron from 'node-cron';
-import { generateAllWeeklyReports } from './report-generator.js';
 
 interface ReportSchedulerConfig {
   timezone?: string;
@@ -15,14 +14,28 @@ const DEFAULT_CONFIG: ReportSchedulerConfig = {
 
 let scheduledTask: cron.ScheduledTask | null = null;
 
-/**
- * Convert day and time to cron expression
- * @param day 0-6 (Sunday-Saturday)
- * @param time HH:MM
- */
 function toCronExpression(day: number, time: string): string {
   const [hour, minute] = time.split(':').map(Number);
   return `${minute} ${hour} * * ${day}`;
+}
+
+/**
+ * Trigger report generation via the dashboard API
+ */
+async function triggerReports(): Promise<void> {
+  const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
+  const cronSecret = process.env.CRON_SECRET || '';
+
+  try {
+    const res = await fetch(`${dashboardUrl}/api/cron/reports`, {
+      headers: cronSecret ? { Authorization: `Bearer ${cronSecret}` } : {},
+    });
+
+    const data = await res.json() as Record<string, unknown>;
+    console.log(`[Report Scheduler] Reports generated:`, data.message || data.error);
+  } catch (error) {
+    console.error('[Report Scheduler] Failed to trigger reports:', error);
+  }
 }
 
 /**
@@ -41,17 +54,7 @@ export function startReportScheduler(config: ReportSchedulerConfig = {}): void {
 
   scheduledTask = cron.schedule(cronExpr, () => {
     console.log('[Report Scheduler] Running weekly report generation...');
-
-    try {
-      // Generate reports for the previous week
-      const previousWeek = new Date();
-      previousWeek.setDate(previousWeek.getDate() - 7);
-
-      const reports = generateAllWeeklyReports(previousWeek);
-      console.log(`[Report Scheduler] Generated ${reports.length} report(s)`);
-    } catch (error) {
-      console.error('[Report Scheduler] Failed to generate reports:', error);
-    }
+    triggerReports();
   }, {
     timezone: mergedConfig.timezone,
   });
@@ -73,7 +76,7 @@ export function stopReportScheduler(): void {
 /**
  * Manually trigger report generation
  */
-export function runReportsNow(): string[] {
+export async function runReportsNow(): Promise<void> {
   console.log('[Report Scheduler] Manual report generation triggered');
-  return generateAllWeeklyReports();
+  await triggerReports();
 }

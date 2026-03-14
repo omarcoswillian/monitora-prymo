@@ -11,22 +11,17 @@ import {
   XCircle,
   Clock,
   Gauge,
+  Users,
+  Package,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
 } from "lucide-react";
 import Breadcrumbs from "@/components/Breadcrumbs";
-import FiltersBar from "@/components/FiltersBar";
-import FilterChip from "@/components/FilterChip";
-import PageTable from "@/components/PageTable";
 import { ResponseTimeChart, UptimeChart } from "@/components/Charts";
 import AuditMetrics from "@/components/AuditMetrics";
 import { AppShell } from "@/components/layout";
 
-type ErrorType =
-  | "HTTP_404"
-  | "HTTP_500"
-  | "TIMEOUT"
-  | "SOFT_404"
-  | "CONNECTION_ERROR"
-  | "UNKNOWN";
 type StatusLabel = "Online" | "Offline" | "Lento" | "Soft 404";
 
 interface StatusEntry {
@@ -39,7 +34,6 @@ interface StatusEntry {
   error?: string;
   timestamp: string;
   statusLabel: StatusLabel;
-  errorType?: ErrorType;
   httpStatus: number | null;
   lastCheckedAt: string;
 }
@@ -47,6 +41,7 @@ interface StatusEntry {
 interface PageEntry {
   id: string;
   client: string;
+  clientId: string;
   name: string;
   url: string;
   interval: number;
@@ -54,6 +49,10 @@ interface PageEntry {
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
+  specialistId?: string | null;
+  specialist?: string | null;
+  productId?: string | null;
+  product?: string | null;
 }
 
 interface HistoryData {
@@ -95,16 +94,11 @@ interface AuditData {
   apiKeyConfigured: boolean;
 }
 
-type Filter = "all" | "online" | "offline" | "slow" | "soft404";
-
-function getStatusType(
-  entry: StatusEntry | undefined,
-): "online" | "offline" | "slow" | "soft404" | "pending" {
-  if (!entry) return "pending";
-  if (entry.statusLabel === "Soft 404") return "soft404";
-  if (entry.statusLabel === "Offline") return "offline";
-  if (entry.statusLabel === "Lento") return "slow";
-  return "online";
+function getStatusBadge(entry: StatusEntry | undefined) {
+  if (!entry) return <span className="badge pending">Aguardando</span>;
+  const label = entry.statusLabel;
+  const cls = label === "Online" ? "online" : label === "Lento" ? "slow" : "offline";
+  return <span className={`badge ${cls}`}>{label}</span>;
 }
 
 export default function ClientDetailPage() {
@@ -122,41 +116,21 @@ export default function ClientDetailPage() {
     averages: null,
     apiKeyConfigured: false,
   });
-  const [filter, setFilter] = useState<Filter>("all");
   const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState<string | null>(null);
-  const [runningAudit, setRunningAudit] = useState<string | null>(null);
+  const [expandedSpecialists, setExpandedSpecialists] = useState<Set<string>>(new Set());
 
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/status");
-      const json = await res.json();
-      setStatus(json);
-    } catch {
-      console.error("Failed to fetch status");
-    }
-  }, []);
-
-  const fetchPages = useCallback(async () => {
-    try {
-      const res = await fetch("/api/pages");
-      const json = await res.json();
-      setPages(json);
-    } catch {
-      console.error("Failed to fetch pages");
-    }
+      setStatus(await res.json());
+    } catch {}
   }, []);
 
   const fetchHistory = useCallback(async () => {
     try {
-      const res = await fetch(
-        `/api/history?client=${encodeURIComponent(clientId)}`,
-      );
-      const json = await res.json();
-      setHistory(json);
-    } catch {
-      console.error("Failed to fetch history");
-    }
+      const res = await fetch(`/api/history?client=${encodeURIComponent(clientId)}`);
+      setHistory(await res.json());
+    } catch {}
   }, [clientId]);
 
   const fetchAudits = useCallback(async (clientPages: PageEntry[]) => {
@@ -167,18 +141,14 @@ export default function ClientDetailPage() {
         url = `/api/audits?pageIds=${encodeURIComponent(pageIds)}`;
       }
       const res = await fetch(url);
-      const json = await res.json();
-      setAudits(json);
-    } catch {
-      console.error("Failed to fetch audits");
-    }
+      setAudits(await res.json());
+    } catch {}
   }, []);
 
   useEffect(() => {
     let auditsInterval: NodeJS.Timeout | null = null;
 
     const init = async () => {
-      // Fetch pages first to get client-specific page list
       const [, pagesRes] = await Promise.all([
         fetchStatus(),
         fetch("/api/pages").then((r) => r.json()),
@@ -186,14 +156,14 @@ export default function ClientDetailPage() {
       ]);
       setPages(pagesRes);
 
-      // Filter pages for this client and fetch audits
-      const filteredPages = pagesRes.filter(
-        (p: PageEntry) => p.client === clientId,
-      );
+      const filteredPages = pagesRes.filter((p: PageEntry) => p.client === clientId);
       await fetchAudits(filteredPages);
       setLoading(false);
 
-      // Set up audits polling with client-specific pages
+      // Expand all specialists by default
+      const specNames = new Set(filteredPages.map((p: PageEntry) => p.specialist || 'Sem especialista'));
+      setExpandedSpecialists(specNames as Set<string>);
+
       auditsInterval = setInterval(() => fetchAudits(filteredPages), 60000);
     };
     init();
@@ -209,204 +179,65 @@ export default function ClientDetailPage() {
   }, [clientId, fetchStatus, fetchHistory, fetchAudits]);
 
   // Filter pages by client
-  const clientPages = useMemo(() => {
-    return pages.filter((p) => p.client === clientId);
-  }, [pages, clientId]);
+  const clientPages = useMemo(() => pages.filter((p) => p.client === clientId), [pages, clientId]);
 
-  // Merge status with pages data (match by pageId)
-  const mergedData = useMemo(() => {
-    return clientPages.map((page) => {
-      const statusEntry = status.find(
-        (s) => s.pageId === page.id,
-      );
-      const auditEntry = audits.latest[page.id];
-      return {
-        ...page,
-        status: statusEntry,
-        audit: auditEntry,
-      };
-    });
-  }, [clientPages, status, audits.latest]);
+  // Status map for quick lookup
+  const statusMap = useMemo(() => {
+    const map = new Map<string, StatusEntry>();
+    for (const s of status) map.set(s.pageId, s);
+    return map;
+  }, [status]);
 
-  // Stats for this client
+  // Build hierarchy: Specialist → Product → Pages
+  const hierarchy = useMemo(() => {
+    const specMap = new Map<string, Map<string, PageEntry[]>>();
+
+    for (const page of clientPages) {
+      const specName = page.specialist || "Sem especialista";
+      const prodName = page.product || "Geral";
+
+      if (!specMap.has(specName)) specMap.set(specName, new Map());
+      const prodMap = specMap.get(specName)!;
+
+      if (!prodMap.has(prodName)) prodMap.set(prodName, []);
+      prodMap.get(prodName)!.push(page);
+    }
+
+    return Array.from(specMap.entries()).map(([specName, prodMap]) => ({
+      name: specName,
+      products: Array.from(prodMap.entries()).map(([prodName, pages]) => ({
+        name: prodName,
+        pages,
+      })),
+      totalPages: Array.from(prodMap.values()).reduce((s, p) => s + p.length, 0),
+    }));
+  }, [clientPages]);
+
+  // Stats
   const stats = useMemo(() => {
-    const enabledPages = mergedData.filter((d) => d.enabled);
-    const pagesWithStatus = enabledPages.filter((d) => d.status);
-
+    const withStatus = clientPages.filter(p => p.enabled && statusMap.has(p.id));
     return {
-      total: mergedData.length,
-      enabled: enabledPages.length,
-      online: pagesWithStatus.filter((d) => d.status?.statusLabel === "Online")
-        .length,
-      offline: pagesWithStatus.filter(
-        (d) => d.status?.statusLabel === "Offline",
-      ).length,
-      slow: pagesWithStatus.filter((d) => d.status?.statusLabel === "Lento")
-        .length,
-      soft404: pagesWithStatus.filter(
-        (d) => d.status?.statusLabel === "Soft 404",
-      ).length,
+      total: clientPages.length,
+      online: withStatus.filter(p => statusMap.get(p.id)?.statusLabel === "Online").length,
+      offline: withStatus.filter(p => statusMap.get(p.id)?.statusLabel === "Offline").length,
+      slow: withStatus.filter(p => statusMap.get(p.id)?.statusLabel === "Lento").length,
+      soft404: withStatus.filter(p => statusMap.get(p.id)?.statusLabel === "Soft 404").length,
     };
-  }, [mergedData]);
+  }, [clientPages, statusMap]);
 
-  // Calculate 7d uptime
   const uptime7d = useMemo(() => {
     if (history.uptimeDaily.length === 0) return null;
-    const avg =
-      history.uptimeDaily.reduce((sum, d) => sum + d.uptime, 0) /
-      history.uptimeDaily.length;
+    const avg = history.uptimeDaily.reduce((sum, d) => sum + d.uptime, 0) / history.uptimeDaily.length;
     return Math.round(avg);
   }, [history.uptimeDaily]);
 
-  // Calculate client audit averages
-  const clientAuditAverages = useMemo(() => {
-    const clientPageIds = new Set(clientPages.map((p) => p.id));
-    const clientAudits = Object.entries(audits.latest)
-      .filter(([pid]) => clientPageIds.has(pid))
-      .map(([, audit]) => audit.audit.scores)
-      .filter(Boolean);
-
-    if (clientAudits.length === 0) return null;
-
-    const sum = {
-      performance: 0,
-      accessibility: 0,
-      bestPractices: 0,
-      seo: 0,
-    };
-    let counts = {
-      performance: 0,
-      accessibility: 0,
-      bestPractices: 0,
-      seo: 0,
-    };
-
-    for (const scores of clientAudits) {
-      if (scores) {
-        if (scores.performance !== null) {
-          sum.performance += scores.performance;
-          counts.performance++;
-        }
-        if (scores.accessibility !== null) {
-          sum.accessibility += scores.accessibility;
-          counts.accessibility++;
-        }
-        if (scores.bestPractices !== null) {
-          sum.bestPractices += scores.bestPractices;
-          counts.bestPractices++;
-        }
-        if (scores.seo !== null) {
-          sum.seo += scores.seo;
-          counts.seo++;
-        }
-      }
-    }
-
-    return {
-      performance: counts.performance
-        ? Math.round(sum.performance / counts.performance)
-        : null,
-      accessibility: counts.accessibility
-        ? Math.round(sum.accessibility / counts.accessibility)
-        : null,
-      bestPractices: counts.bestPractices
-        ? Math.round(sum.bestPractices / counts.bestPractices)
-        : null,
-      seo: counts.seo ? Math.round(sum.seo / counts.seo) : null,
-      trend: {
-        performance: null as "up" | "down" | "stable" | null,
-        accessibility: null as "up" | "down" | "stable" | null,
-        bestPractices: null as "up" | "down" | "stable" | null,
-        seo: null as "up" | "down" | "stable" | null,
-      },
-    };
-  }, [audits.latest, clientPages]);
-
-  // Find best and worst pages by performance
-  const bestWorstPages = useMemo(() => {
-    const pagesWithScores = mergedData
-      .filter(
-        (d) =>
-          d.audit?.audit?.scores?.performance !== null &&
-          d.audit?.audit?.scores?.performance !== undefined,
-      )
-      .map((d) => ({
-        ...d,
-        perfScore: d.audit!.audit.scores!.performance!,
-      }))
-      .sort((a, b) => b.perfScore - a.perfScore);
-
-    return {
-      best: pagesWithScores[0] || null,
-      worst: pagesWithScores[pagesWithScores.length - 1] || null,
-    };
-  }, [mergedData]);
-
-  // Filter by status
-  const filtered = useMemo(() => {
-    if (filter === "all") return mergedData;
-    return mergedData.filter((d) => {
-      if (!d.status || !d.enabled) return false;
-      const statusType = getStatusType(d.status);
-      return statusType === filter;
+  const toggleSpecialist = (name: string) => {
+    setExpandedSpecialists(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
     });
-  }, [mergedData, filter]);
-
-  const toggleEnabled = async (
-    page: PageEntry & { status?: StatusEntry; audit?: PageAuditEntry },
-  ) => {
-    try {
-      await fetch(`/api/pages/${page.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: !page.enabled }),
-      });
-      fetchPages();
-    } catch {
-      console.error("Failed to toggle page");
-    }
-  };
-
-  const handleDelete = async (
-    page: PageEntry & { status?: StatusEntry; audit?: PageAuditEntry },
-  ) => {
-    if (!confirm(`Excluir "${page.name}"?`)) return;
-
-    setDeleting(page.id);
-    try {
-      await fetch(`/api/pages/${page.id}`, { method: "DELETE" });
-      fetchPages();
-    } catch {
-      console.error("Failed to delete page");
-    } finally {
-      setDeleting(null);
-    }
-  };
-
-  const handleRunAudit = async (
-    page: PageEntry & { status?: StatusEntry; audit?: PageAuditEntry },
-  ) => {
-    if (!audits.apiKeyConfigured) {
-      alert(
-        "API key do PageSpeed nao configurada. Adicione PAGESPEED_API_KEY ao .env",
-      );
-      return;
-    }
-
-    setRunningAudit(page.id);
-
-    try {
-      await fetch("/api/audits/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageId: page.id, url: page.url }),
-      });
-      await fetchAudits(clientPages);
-    } catch {
-      console.error("Failed to run audit");
-    } finally {
-      setRunningAudit(null);
-    }
   };
 
   if (loading) {
@@ -424,14 +255,8 @@ export default function ClientDetailPage() {
       <AppShell>
         <div className="container">
           <Breadcrumbs items={[{ label: clientId }]} />
-          <div className="empty">
-            Cliente nao encontrado ou sem paginas cadastradas.
-          </div>
-          <Link
-            href="/"
-            className="btn"
-            style={{ marginTop: "1rem", display: "inline-block" }}
-          >
+          <div className="empty">Cliente nao encontrado ou sem paginas cadastradas.</div>
+          <Link href="/" className="btn" style={{ marginTop: "1rem", display: "inline-block" }}>
             Voltar para Home
           </Link>
         </div>
@@ -450,7 +275,7 @@ export default function ClientDetailPage() {
           <div className="header-row">
             <div>
               <h1>{clientId}</h1>
-              <p>Detalhes do cliente</p>
+              <p>{hierarchy.length} especialista(s) · {stats.total} pagina(s)</p>
             </div>
           </div>
         </header>
@@ -458,57 +283,30 @@ export default function ClientDetailPage() {
         {/* Summary Cards */}
         <div className="cards">
           <div className="card">
-            <div className="card-icon">
-              <Globe size={20} />
-            </div>
-            <div className="card-label">Total Paginas</div>
+            <div className="card-icon"><Globe size={20} /></div>
+            <div className="card-label">Total</div>
             <div className="card-value">{stats.total}</div>
           </div>
-          <div
-            className={`card ${stats.online > 0 ? "card-highlight-ok" : ""}`}
-          >
-            <div className="card-icon">
-              <CheckCircle2 size={20} />
-            </div>
-            <div className="card-label">OK</div>
+          <div className={`card ${stats.online > 0 ? "card-highlight-ok" : ""}`}>
+            <div className="card-icon"><CheckCircle2 size={20} /></div>
+            <div className="card-label">Online</div>
             <div className="card-value online">{stats.online}</div>
           </div>
-          <div
-            className={`card ${stats.offline > 0 ? "card-highlight-danger" : ""}`}
-          >
-            <div className="card-icon">
-              <XCircle size={20} />
-            </div>
-            <div className="card-label">Erro</div>
+          <div className={`card ${stats.offline > 0 ? "card-highlight-danger" : ""}`}>
+            <div className="card-icon"><XCircle size={20} /></div>
+            <div className="card-label">Offline</div>
             <div className="card-value offline">{stats.offline}</div>
           </div>
-          <div
-            className={`card ${stats.slow > 0 ? "card-highlight-warning" : ""}`}
-          >
-            <div className="card-icon">
-              <Clock size={20} />
-            </div>
+          <div className={`card ${stats.slow > 0 ? "card-highlight-warning" : ""}`}>
+            <div className="card-icon"><Clock size={20} /></div>
             <div className="card-label">Lento</div>
             <div className="card-value slow">{stats.slow}</div>
           </div>
-          <div
-            className={`card ${stats.soft404 > 0 ? "card-highlight-danger" : ""}`}
-          >
-            <div className="card-icon">
-              <AlertTriangle size={20} />
-            </div>
-            <div className="card-label">Soft 404</div>
-            <div className="card-value soft404">{stats.soft404}</div>
-          </div>
           {uptime7d !== null && (
             <div className="card">
-              <div className="card-icon">
-                <Activity size={20} />
-              </div>
-              <div className="card-label">Uptime (7d)</div>
-              <div
-                className={`card-value ${uptime7d >= 99 ? "online" : uptime7d >= 95 ? "slow" : "offline"}`}
-              >
+              <div className="card-icon"><Activity size={20} /></div>
+              <div className="card-label">Uptime 7d</div>
+              <div className={`card-value ${uptime7d >= 99 ? "online" : uptime7d >= 95 ? "slow" : "offline"}`}>
                 {uptime7d}%
               </div>
             </div>
@@ -517,65 +315,9 @@ export default function ClientDetailPage() {
 
         {hasProblems && (
           <div className="alert-banner">
-            Atencao: {stats.offline + stats.soft404} pagina(s) com problema
-            detectado!
+            Atencao: {stats.offline + stats.soft404} pagina(s) com problema!
           </div>
         )}
-
-        {/* Audit Metrics for Client */}
-        {clientAuditAverages && (
-          <AuditMetrics
-            averages={clientAuditAverages}
-            apiKeyConfigured={audits.apiKeyConfigured}
-          />
-        )}
-
-        {/* Best/Worst Pages */}
-        {(bestWorstPages.best || bestWorstPages.worst) &&
-          bestWorstPages.best !== bestWorstPages.worst && (
-            <div className="best-worst-section">
-              <h2 className="section-title">Performance PageSpeed</h2>
-              <div className="best-worst-grid">
-                {bestWorstPages.best && (
-                  <div className="best-worst-card best-card">
-                    <div className="best-worst-label">
-                      <Gauge size={16} />
-                      <span>Melhor Performance</span>
-                    </div>
-                    <Link
-                      href={`/pages/${bestWorstPages.best.id}`}
-                      className="best-worst-link"
-                    >
-                      {bestWorstPages.best.name}
-                    </Link>
-                    <div className="best-worst-score score-good">
-                      {bestWorstPages.best.perfScore}
-                    </div>
-                  </div>
-                )}
-                {bestWorstPages.worst &&
-                  bestWorstPages.worst !== bestWorstPages.best && (
-                    <div className="best-worst-card worst-card">
-                      <div className="best-worst-label">
-                        <Gauge size={16} />
-                        <span>Pior Performance</span>
-                      </div>
-                      <Link
-                        href={`/pages/${bestWorstPages.worst.id}`}
-                        className="best-worst-link"
-                      >
-                        {bestWorstPages.worst.name}
-                      </Link>
-                      <div
-                        className={`best-worst-score ${bestWorstPages.worst.perfScore >= 90 ? "score-good" : bestWorstPages.worst.perfScore >= 50 ? "score-ok" : "score-bad"}`}
-                      >
-                        {bestWorstPages.worst.perfScore}
-                      </div>
-                    </div>
-                  )}
-              </div>
-            </div>
-          )}
 
         {/* Charts */}
         <div className="charts-row">
@@ -583,38 +325,95 @@ export default function ClientDetailPage() {
           <UptimeChart data={history.uptimeDaily} />
         </div>
 
-        {/* Filters */}
-        <FiltersBar>
-          {(
-            [
-              { key: "all", label: "Todas" },
-              { key: "online", label: "Online" },
-              { key: "offline", label: "Offline" },
-              { key: "slow", label: "Lento" },
-              { key: "soft404", label: "Soft 404" },
-            ] as const
-          ).map((f) => (
-            <FilterChip
-              key={f.key}
-              active={filter === f.key}
-              onClick={() => setFilter(f.key)}
-            >
-              {f.label}
-            </FilterChip>
-          ))}
-        </FiltersBar>
+        {/* Hierarchy: Specialist → Product → Pages */}
+        <h2 className="section-title" style={{ marginTop: "2rem" }}>
+          <Users size={20} /> Especialistas e Paginas
+        </h2>
 
-        {/* Pages Table */}
-        <PageTable
-          pages={filtered}
-          showClientColumn={false}
-          onToggleEnabled={toggleEnabled}
-          onDelete={handleDelete}
-          onRunAudit={handleRunAudit}
-          runningAudit={runningAudit}
-          deleting={deleting}
-          apiKeyConfigured={audits.apiKeyConfigured}
-        />
+        {hierarchy.map(spec => (
+          <div key={spec.name} className="settings-section" style={{ marginBottom: "1rem" }}>
+            <div
+              className="settings-section-header"
+              style={{ cursor: "pointer" }}
+              onClick={() => toggleSpecialist(spec.name)}
+            >
+              <Users size={20} />
+              <div style={{ flex: 1 }}>
+                <h3>{spec.name}</h3>
+                <p>{spec.products.length} produto(s) · {spec.totalPages} pagina(s)</p>
+              </div>
+              {expandedSpecialists.has(spec.name)
+                ? <ChevronDown size={16} />
+                : <ChevronRight size={16} />
+              }
+            </div>
+
+            {expandedSpecialists.has(spec.name) && (
+              <div className="settings-section-content">
+                {spec.products.map(prod => (
+                  <div key={prod.name} style={{ marginBottom: "1.5rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                      <Package size={16} />
+                      <strong>{prod.name}</strong>
+                      <span className="form-hint">({prod.pages.length} pagina{prod.pages.length !== 1 ? 's' : ''})</span>
+                    </div>
+
+                    <div className="table-container">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Pagina</th>
+                            <th>URL</th>
+                            <th>Status</th>
+                            <th>Tempo</th>
+                            <th>Performance</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {prod.pages.map(page => {
+                            const st = statusMap.get(page.id);
+                            const audit = audits.latest[page.id];
+                            const perfScore = audit?.audit?.scores?.performance;
+                            return (
+                              <tr key={page.id}>
+                                <td>
+                                  <Link href={`/pages/${page.id}`} className="page-name-link">
+                                    {page.name}
+                                  </Link>
+                                </td>
+                                <td>
+                                  <a href={page.url} target="_blank" rel="noopener noreferrer" className="url-link">
+                                    <span className="url">{page.url}</span>
+                                    <ExternalLink size={12} className="url-icon" />
+                                  </a>
+                                </td>
+                                <td>{getStatusBadge(st)}</td>
+                                <td>
+                                  {st ? (
+                                    <span className={st.responseTime > 1500 ? "slow" : ""}>
+                                      {st.responseTime}ms
+                                    </span>
+                                  ) : "-"}
+                                </td>
+                                <td>
+                                  {perfScore !== null && perfScore !== undefined ? (
+                                    <span className={`badge ${perfScore >= 90 ? "online" : perfScore >= 50 ? "slow" : "offline"}`}>
+                                      {perfScore}
+                                    </span>
+                                  ) : "-"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </AppShell>
   );

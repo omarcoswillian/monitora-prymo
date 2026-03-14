@@ -6,6 +6,7 @@ import {
 } from '@/lib/supabase-report-data-aggregator'
 import { generateFallbackReport } from '@/lib/ai-report-generator'
 import { createAIReport, updateAIReport } from '@/lib/supabase-ai-reports-store'
+import { getUserContext } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +17,16 @@ interface GenerateRequest {
 
 export async function POST(request: Request) {
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Only admins can generate reports
+    if (!ctx.isAdmin) {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+    }
+
     const body = (await request.json()) as GenerateRequest
 
     if (!body.scope || !['all', 'client', 'global'].includes(body.scope)) {

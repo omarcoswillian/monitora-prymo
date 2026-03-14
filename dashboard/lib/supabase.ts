@@ -83,6 +83,11 @@ export interface DbPage {
   last_checked_at: string | null
   audit_status: string | null
   audit_error: string | null
+  specialist_id: string | null
+  product_id: string | null
+  content_rules: Array<{ text: string; type: string }> | null
+  ssl_expires_at: string | null
+  ssl_status: string | null
 }
 
 export interface DbCheckHistory {
@@ -94,6 +99,7 @@ export interface DbCheckHistory {
   checked_at: string
   check_origin: string
   status_label: string | null
+  content_check_passed: boolean | null
 }
 
 export interface DbIncident {

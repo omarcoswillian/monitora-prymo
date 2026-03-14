@@ -1,16 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Copy, Check } from 'lucide-react'
 import Modal from './Modal'
-
-interface PageFormData {
-  client: string
-  name: string
-  url: string
-  interval: number
-  timeout: number
-  enabled: boolean
-}
 
 interface CreatedPage {
   id: string
@@ -26,13 +18,9 @@ interface PageFormModalProps {
   onSuccess: (page?: CreatedPage) => void
 }
 
-const defaultData: PageFormData = {
-  client: '',
-  name: '',
-  url: '',
-  interval: 30000,
-  timeout: 10000,
-  enabled: true,
+interface Credentials {
+  login: string
+  password: string
 }
 
 export default function PageFormModal({
@@ -42,10 +30,19 @@ export default function PageFormModal({
   onClose,
   onSuccess,
 }: PageFormModalProps) {
-  const [data, setData] = useState<PageFormData>(defaultData)
+  const [clientName, setClientName] = useState('')
+  const [specialistName, setSpecialistName] = useState('')
+  const [pageName, setPageName] = useState('')
+  const [url, setUrl] = useState('')
   const [errors, setErrors] = useState<string[]>([])
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [credentials, setCredentials] = useState<Credentials | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [successMsg, setSuccessMsg] = useState<string | null>(null)
+
+  // Edit mode: load existing data
+  const [loading, setLoading] = useState(false)
+  const [editData, setEditData] = useState<any>(null)
 
   useEffect(() => {
     if (isOpen && mode === 'edit' && pageId) {
@@ -53,183 +50,222 @@ export default function PageFormModal({
       fetch(`/api/pages/${pageId}`)
         .then(res => res.json())
         .then(page => {
-          setData({
-            client: page.client,
-            name: page.name,
-            url: page.url,
-            interval: page.interval,
-            timeout: page.timeout,
-            enabled: page.enabled,
-          })
+          setEditData(page)
+          setClientName(page.client || '')
+          setSpecialistName(page.specialist || '')
+          setPageName(page.name || '')
+          setUrl(page.url || '')
         })
-        .catch(() => {
-          setErrors(['Failed to load page data'])
-        })
-        .finally(() => {
-          setLoading(false)
-        })
+        .catch(() => setErrors(['Erro ao carregar pagina']))
+        .finally(() => setLoading(false))
     } else if (isOpen && mode === 'create') {
-      setData(defaultData)
+      setClientName('')
+      setSpecialistName('')
+      setPageName('')
+      setUrl('')
       setErrors([])
+      setCredentials(null)
+      setSuccessMsg(null)
+      setCopied(false)
     }
   }, [isOpen, mode, pageId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrors([])
+    setCredentials(null)
+    setSuccessMsg(null)
     setSaving(true)
 
     try {
-      const url = mode === 'edit' ? `/api/pages/${pageId}` : '/api/pages'
-      const method = mode === 'edit' ? 'PUT' : 'POST'
+      if (mode === 'edit') {
+        // Edit mode: use existing API
+        const res = await fetch(`/api/pages/${pageId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            client: clientName,
+            name: pageName,
+            url,
+            interval: editData?.interval || 30000,
+            timeout: editData?.timeout || 10000,
+            enabled: editData?.enabled ?? true,
+          }),
+        })
+        const result = await res.json()
+        if (!res.ok) {
+          setErrors([result.error || 'Erro ao salvar'])
+          return
+        }
+        onSuccess({ id: result.id, url: result.url, enabled: result.enabled })
+        onClose()
+      } else {
+        // Create mode: use quick API
+        const res = await fetch('/api/pages/quick', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientName: clientName.trim(),
+            specialistName: specialistName.trim(),
+            pageName: pageName.trim(),
+            url: url.trim(),
+          }),
+        })
+        const result = await res.json()
+        if (!res.ok) {
+          setErrors([result.error || 'Erro ao criar'])
+          return
+        }
 
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      })
+        // Show credentials if new client was created
+        if (result.credentials) {
+          setCredentials(result.credentials)
+          setSuccessMsg(`Pagina criada! Cliente "${result.client.name}" criado com acesso automatico.`)
+        } else {
+          setSuccessMsg(`Pagina "${result.page.name}" criada com sucesso!`)
+          // Auto-close after brief delay if no credentials to show
+          setTimeout(() => {
+            onSuccess({ id: result.page.id, url: result.page.url, enabled: true })
+            onClose()
+          }, 800)
+        }
 
-      const result = await res.json()
-
-      if (!res.ok) {
-        setErrors(result.details || [result.error || 'Failed to save'])
-        return
+        // Clear form for next entry
+        setPageName('')
+        setUrl('')
       }
-
-      onSuccess({ id: result.id, url: result.url, enabled: result.enabled })
-      onClose()
     } catch {
-      setErrors(['Failed to save page'])
+      setErrors(['Erro ao salvar'])
     } finally {
       setSaving(false)
     }
   }
 
-  const handleChange = (
-    field: keyof PageFormData,
-    value: string | number | boolean
-  ) => {
-    setData(prev => ({ ...prev, [field]: value }))
+  const portalUrl = typeof window !== 'undefined' ? window.location.origin : ''
+
+  const accessMessage = credentials
+    ? `Acesso ao Prymo Monitora\n\nLink: ${portalUrl}/login-cliente\nAcesso: ${credentials.login}\nSenha: ${credentials.password}`
+    : ''
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(accessMessage)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
-  const title = mode === 'create' ? 'Add New Page' : 'Edit Page'
+  const handleCloseWithRefresh = () => {
+    onSuccess()
+    onClose()
+  }
+
+  const title = mode === 'create' ? 'Adicionar Pagina' : 'Editar Pagina'
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title}>
+    <Modal isOpen={isOpen} onClose={credentials ? handleCloseWithRefresh : onClose} title={title}>
       {loading ? (
-        <div className="modal-loading">Loading...</div>
+        <div className="modal-loading">Carregando...</div>
       ) : (
-        <form onSubmit={handleSubmit} className="modal-form">
-          {errors.length > 0 && (
-            <div className="form-errors">
-              {errors.map((error, i) => (
-                <div key={i}>{error}</div>
-              ))}
+        <>
+          {/* Success + Credentials Card */}
+          {credentials && (
+            <div style={{ marginBottom: '1rem' }}>
+              {successMsg && <div className="form-success">{successMsg}</div>}
+              <div className="access-card">
+                <div className="access-card-header">
+                  <Check size={16} /> Acesso criado — copie e envie ao cliente
+                </div>
+                <pre className="access-card-content">{accessMessage}</pre>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-primary" onClick={handleCopy} style={{ flex: 1 }}>
+                    {copied ? <><Check size={16} /> Copiado!</> : <><Copy size={16} /> Copiar Acesso</>}
+                  </button>
+                  <button className="btn" onClick={handleCloseWithRefresh} style={{ flex: 1 }}>
+                    Fechar
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
-          <div className="form-group">
-            <label htmlFor="client">Client</label>
-            <input
-              type="text"
-              id="client"
-              value={data.client}
-              onChange={e => handleChange('client', e.target.value)}
-              className="input"
-              placeholder="e.g., Acme Corp"
-              required
-            />
-          </div>
+          {/* Form */}
+          {!credentials && (
+            <form onSubmit={handleSubmit} className="modal-form">
+              {errors.length > 0 && (
+                <div className="form-errors">
+                  {errors.map((error, i) => <div key={i}>{error}</div>)}
+                </div>
+              )}
 
-          <div className="form-group">
-            <label htmlFor="name">Page Name</label>
-            <input
-              type="text"
-              id="name"
-              value={data.name}
-              onChange={e => handleChange('name', e.target.value)}
-              className="input"
-              placeholder="e.g., Home Page"
-              required
-            />
-          </div>
+              {successMsg && !credentials && (
+                <div className="form-success">{successMsg}</div>
+              )}
 
-          <div className="form-group">
-            <label htmlFor="url">URL</label>
-            <input
-              type="url"
-              id="url"
-              value={data.url}
-              onChange={e => handleChange('url', e.target.value)}
-              className="input"
-              placeholder="https://example.com"
-              required
-            />
-          </div>
+              <div className="form-group">
+                <label htmlFor="clientName">Cliente</label>
+                <input
+                  type="text"
+                  id="clientName"
+                  value={clientName}
+                  onChange={e => setClientName(e.target.value)}
+                  className="input"
+                  placeholder="Nome do cliente (ex: Execucao Digital)"
+                  required
+                />
+                {mode === 'create' && (
+                  <span className="form-hint">Se o cliente nao existir, sera criado com login automatico.</span>
+                )}
+              </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="interval">Interval (ms)</label>
-              <input
-                type="number"
-                id="interval"
-                value={data.interval}
-                onChange={e =>
-                  handleChange('interval', parseInt(e.target.value) || 0)
-                }
-                className="input"
-                min={5000}
-                step={1000}
-                required
-              />
-              <span className="form-hint">Minimum: 5000ms (5s)</span>
-            </div>
+              <div className="form-group">
+                <label htmlFor="specialistName">Especialista</label>
+                <input
+                  type="text"
+                  id="specialistName"
+                  value={specialistName}
+                  onChange={e => setSpecialistName(e.target.value)}
+                  className="input"
+                  placeholder="Nome do especialista (ex: Luana Carolina)"
+                  required
+                />
+              </div>
 
-            <div className="form-group">
-              <label htmlFor="timeout">Timeout</label>
-              <select
-                id="timeout"
-                value={data.timeout}
-                onChange={e =>
-                  handleChange('timeout', parseInt(e.target.value))
-                }
-                className="timeout-select"
-                required
-              >
-                <option value={10000}>10 segundos</option>
-                <option value={15000}>15 segundos</option>
-                <option value={20000}>20 segundos</option>
-                <option value={25000}>25 segundos</option>
-                <option value={30000}>30 segundos</option>
-              </select>
-              <span className="form-hint">Tempo maximo de espera pela resposta</span>
-            </div>
-          </div>
+              <div className="form-group">
+                <label htmlFor="pageName">Nome da Pagina</label>
+                <input
+                  type="text"
+                  id="pageName"
+                  value={pageName}
+                  onChange={e => setPageName(e.target.value)}
+                  className="input"
+                  placeholder="Ex: Home Page"
+                  required
+                />
+              </div>
 
-          <div className="form-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={data.enabled}
-                onChange={e => handleChange('enabled', e.target.checked)}
-              />
-              <span>Enabled (start monitoring immediately)</span>
-            </label>
-          </div>
+              <div className="form-group">
+                <label htmlFor="url">URL</label>
+                <input
+                  type="url"
+                  id="url"
+                  value={url}
+                  onChange={e => setUrl(e.target.value)}
+                  className="input"
+                  placeholder="https://exemplo.com"
+                  required
+                />
+              </div>
 
-          <div className="form-actions">
-            <button type="button" onClick={onClose} className="btn">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="btn btn-primary"
-            >
-              {saving ? 'Saving...' : mode === 'edit' ? 'Save Changes' : 'Create Page'}
-            </button>
-          </div>
-        </form>
+              <div className="form-actions">
+                <button type="button" onClick={onClose} className="btn">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={saving} className="btn btn-primary">
+                  {saving ? 'Criando...' : mode === 'edit' ? 'Salvar' : 'Criar Pagina'}
+                </button>
+              </div>
+            </form>
+          )}
+        </>
       )}
     </Modal>
   )

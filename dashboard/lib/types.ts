@@ -21,6 +21,9 @@ export type ErrorType =
   | 'CONNECTION_ERROR'
   | 'WAF_BLOCK'
   | 'REDIRECT_LOOP'
+  | 'CONTENT_MISMATCH'
+  | 'SSL_EXPIRING'
+  | 'SSL_EXPIRED'
   | 'UNKNOWN'
 
 // ===== CHECK ORIGIN =====
@@ -153,6 +156,18 @@ export const ERROR_TYPE_LABELS: Record<ErrorType, { label: string; description: 
   REDIRECT_LOOP: {
     label: 'Redirect',
     description: 'Redirecionamento excessivo ou para pagina de bloqueio',
+  },
+  CONTENT_MISMATCH: {
+    label: 'Conteudo',
+    description: 'Conteudo esperado nao encontrado na pagina',
+  },
+  SSL_EXPIRING: {
+    label: 'SSL',
+    description: 'Certificado SSL expirando em menos de 30 dias',
+  },
+  SSL_EXPIRED: {
+    label: 'SSL Expirado',
+    description: 'Certificado SSL expirado',
   },
   UNKNOWN: {
     label: 'Erro',

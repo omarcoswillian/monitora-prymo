@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getAllPages } from '@/lib/supabase-pages-store'
 import { getSettings } from '@/lib/supabase-settings-store'
+import { getUserContext, filterByClientAccess } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -96,9 +97,16 @@ function applyPageFilter(
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const clientFilter = searchParams.get('client')
+  const specialistFilter = searchParams.get('specialist')
+  const productFilter = searchParams.get('product')
   const pageId = searchParams.get('pageId')
 
   try {
+    const ctx = await getUserContext()
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     // Load settings for timezone
     const settings = await getSettings()
     const timezone = settings.account.timezone || 'America/Sao_Paulo'
@@ -107,12 +115,27 @@ export async function GET(request: Request) {
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
-    // If filtering by client, resolve page IDs
+    // Resolve accessible pages for the user
+    const allPages = await getAllPages()
+    const accessiblePages = filterByClientAccess(allPages, ctx)
+    const accessiblePageIds = new Set(accessiblePages.map(p => p.id))
+
+    // If filtering by client/specialist/product, resolve page IDs (scoped to accessible pages)
     let clientPageIds: Set<string> | null = null
-    if (clientFilter && !pageId) {
-      const allPages = await getAllPages()
-      const clientPages = allPages.filter(p => p.client === clientFilter)
-      clientPageIds = new Set(clientPages.map(p => p.id))
+    if ((clientFilter || specialistFilter || productFilter) && !pageId) {
+      let filtered = accessiblePages
+      if (clientFilter) filtered = filtered.filter(p => p.client === clientFilter)
+      if (specialistFilter) filtered = filtered.filter(p => p.specialist === specialistFilter)
+      if (productFilter) filtered = filtered.filter(p => p.product === productFilter)
+      clientPageIds = new Set(filtered.map(p => p.id))
+    } else if (!pageId && !ctx.isAdmin) {
+      // CLIENT users without explicit filter: scope to their pages
+      clientPageIds = accessiblePageIds
+    }
+
+    // Validate pageId access
+    if (pageId && !accessiblePageIds.has(pageId) && !ctx.isAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     // --- Query 1: Response Time (last 24h) ---
