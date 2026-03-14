@@ -39,6 +39,16 @@ import type { PageStatus, ErrorType, CheckOrigin } from "@/lib/types";
 import { STATUS_CONFIG, ERROR_TYPE_LABELS as SHARED_ERROR_TYPE_LABELS } from "@/lib/types";
 import { SLA_TARGETS } from "@/lib/sla-targets";
 import { useUserRole } from "@/lib/use-user-role";
+import ClientGreeting from "@/components/ClientGreeting";
+
+const PAGE_TYPE_LABELS: Record<string, string> = {
+  vendas: 'Vendas',
+  captura: 'Captura',
+  obrigado: 'Obrigado',
+  blog: 'Blog',
+  site: 'Site',
+  checkout: 'Checkout',
+};
 
 type StatusLabel = "Online" | "Offline" | "Lento" | "Soft 404";
 
@@ -78,6 +88,7 @@ interface PageEntry {
   specialist?: string | null;
   productId?: string | null;
   product?: string | null;
+  pageType?: string;
 }
 
 interface Client {
@@ -206,7 +217,7 @@ function getStatusType(
 
 export default function Dashboard() {
   const router = useRouter();
-  const { isAdmin } = useUserRole();
+  const { isAdmin, isClient } = useUserRole();
   const [status, setStatus] = useState<StatusEntry[]>([]);
   const [pages, setPages] = useState<PageEntry[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -225,6 +236,7 @@ export default function Dashboard() {
   );
   const [tableSpecialistFilter, setTableSpecialistFilter] = useState<string | null>(null);
   const [tableProductFilter, setTableProductFilter] = useState<string | null>(null);
+  const [tableTypeFilter, setTableTypeFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [runningAudit, setRunningAudit] = useState<string | null>(null);
@@ -438,8 +450,9 @@ export default function Dashboard() {
     if (tableClientFilter) result = result.filter((d) => d.client === tableClientFilter);
     if (tableSpecialistFilter) result = result.filter((d) => d.specialist === tableSpecialistFilter);
     if (tableProductFilter) result = result.filter((d) => d.product === tableProductFilter);
+    if (tableTypeFilter) result = result.filter((d) => (d.pageType || 'site') === tableTypeFilter);
     return result;
-  }, [mergedData, tableClientFilter, tableSpecialistFilter, tableProductFilter]);
+  }, [mergedData, tableClientFilter, tableSpecialistFilter, tableProductFilter, tableTypeFilter]);
 
   const counts = useMemo(() => {
     const enabledWithStatus = clientFiltered
@@ -792,6 +805,27 @@ export default function Dashboard() {
           </div>
         </header>
 
+        {/* Client Greeting */}
+        {isClient && clients.length > 0 && (
+          <ClientGreeting
+            companyName={clients[0]?.name ?? ""}
+            totalPages={counts.total}
+            onlineCount={counts.online}
+            offlineCount={counts.offline}
+            slowCount={counts.slow}
+            uptime7d={
+              history.uptimeDaily.length > 0
+                ? Math.round(
+                    (history.uptimeDaily.reduce((s, d) => s + d.uptime, 0) /
+                      history.uptimeDaily.length) *
+                      10
+                  ) / 10
+                : null
+            }
+            avgPerformance={audits.averages?.performance ?? null}
+          />
+        )}
+
         {/* Suggested Actions */}
         <SuggestedActions
           actions={suggestedActions}
@@ -922,6 +956,7 @@ export default function Dashboard() {
                 setTableClientFilter(value === "" ? null : value);
                 setTableSpecialistFilter(null);
                 setTableProductFilter(null);
+                setTableTypeFilter(null);
               }}
               options={uniqueClients.map((client) => ({
                 value: client,
@@ -959,6 +994,22 @@ export default function Dashboard() {
               placeholder="Todos Produtos"
             />
           )}
+
+          <FilterSelect
+            value={tableTypeFilter || ""}
+            onChange={(value) =>
+              setTableTypeFilter(value === "" ? null : value)
+            }
+            options={[
+              { value: 'vendas', label: 'Vendas' },
+              { value: 'captura', label: 'Captura' },
+              { value: 'obrigado', label: 'Obrigado' },
+              { value: 'blog', label: 'Blog' },
+              { value: 'site', label: 'Site' },
+              { value: 'checkout', label: 'Checkout' },
+            ]}
+            placeholder="Todos Tipos"
+          />
 
           <FilterChip
             active={filter === "all"}
@@ -1024,11 +1075,11 @@ export default function Dashboard() {
                     </div>
 
                     {spec.products.map((prod) => (
-                      <div key={prod.name} style={{ marginLeft: "1.5rem", marginBottom: "1rem" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                          <Package size={14} />
-                          <span>{prod.name}</span>
-                          <span className="form-hint">({prod.pages.length})</span>
+                      <div key={prod.name} className="product-card" style={{ marginLeft: "1.5rem" }}>
+                        <div className="product-card-header">
+                          <Package size={16} />
+                          <strong>{prod.name}</strong>
+                          <span className="form-hint">({prod.pages.length} pagina{prod.pages.length !== 1 ? 's' : ''})</span>
                         </div>
 
                         <div className="table-container">
@@ -1056,9 +1107,14 @@ export default function Dashboard() {
                                 return (
                                   <tr key={entry.id} className={`${isUrgent ? "row-urgent" : ""} ${isWarning ? "row-warning" : ""}`}>
                                     <td>
-                                      <Link href={`/pages/${entry.id}`} className="page-name-link">
-                                        {entry.name}
-                                      </Link>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <span className={`page-type-badge page-type-${entry.pageType || 'site'}`}>
+                                          {PAGE_TYPE_LABELS[entry.pageType || 'site']}
+                                        </span>
+                                        <Link href={`/pages/${entry.id}`} className="page-name-link">
+                                          {entry.name}
+                                        </Link>
+                                      </div>
                                     </td>
                                     <td>
                                       <a href={entry.url} target="_blank" rel="noopener noreferrer" className="url-link">
@@ -1088,6 +1144,8 @@ export default function Dashboard() {
                                       {auditScores ? (
                                         <div className="scores-cell">
                                           <ScoreBadge score={auditScores.performance} label="Perf" />
+                                          <ScoreBadge score={auditScores.accessibility} label="Acess" />
+                                          <ScoreBadge score={auditScores.bestPractices} label="BP" />
                                           <ScoreBadge score={auditScores.seo} label="SEO" />
                                         </div>
                                       ) : (
@@ -1099,6 +1157,9 @@ export default function Dashboard() {
                                         <Link href={`/pages/${entry.id}`} className="btn btn-small btn-icon" title="Ver detalhes">
                                           <ExternalLink size={14} />
                                         </Link>
+                                        <button onClick={() => openEditModal(entry.id)} className="btn btn-small btn-icon" title="Editar">
+                                          <Pencil size={14} />
+                                        </button>
                                         <button onClick={() => toggleEnabled(entry)} className="btn btn-small btn-icon" title={entry.enabled ? "Pausar" : "Ativar"}>
                                           {entry.enabled ? <Pause size={14} /> : <Play size={14} />}
                                         </button>

@@ -88,6 +88,7 @@ export interface DbPage {
   content_rules: Array<{ text: string; type: string }> | null
   ssl_expires_at: string | null
   ssl_status: string | null
+  page_type: string | null
 }
 
 export interface DbCheckHistory {

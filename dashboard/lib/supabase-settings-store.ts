@@ -26,6 +26,7 @@ export interface AuditSettings {
 
 export interface ReportSettings {
   autoReportsEnabled: boolean
+  emailEnabled: boolean
   dayOfWeek: 0 | 1 | 2 | 3 | 4 | 5 | 6 // 0 = domingo
   scheduledTime: string // HH:mm
   scope: 'client' | 'global'
@@ -78,6 +79,7 @@ export const defaultSettings: Settings = {
   },
   reports: {
     autoReportsEnabled: true,
+    emailEnabled: false,
     dayOfWeek: 1, // Segunda-feira
     scheduledTime: '08:30',
     scope: 'client',

@@ -335,3 +335,11 @@ END $$;
 -- CREATE POLICY "Allow all" ON audit_history FOR ALL USING (true);
 -- CREATE POLICY "Allow all" ON settings FOR ALL USING (true);
 -- CREATE POLICY "Allow all" ON ai_reports FOR ALL USING (true);
+
+-- Add page_type column to pages (for existing databases)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'pages' AND column_name = 'page_type') THEN
+    ALTER TABLE pages ADD COLUMN page_type TEXT DEFAULT 'site';
+  END IF;
+END $$;

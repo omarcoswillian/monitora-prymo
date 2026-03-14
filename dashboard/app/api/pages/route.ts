@@ -65,6 +65,7 @@ export async function POST(request: Request) {
       soft404Patterns: data.soft404Patterns,
       specialistId: data.specialistId || null,
       productId: data.productId || null,
+      pageType: data.pageType || 'site',
     })
 
     // Immediate check: run BEFORE responding so check_history exists when frontend refreshes

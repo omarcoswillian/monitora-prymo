@@ -22,6 +22,15 @@ import { ResponseTimeChart, UptimeChart } from "@/components/Charts";
 import AuditMetrics from "@/components/AuditMetrics";
 import { AppShell } from "@/components/layout";
 
+const PAGE_TYPE_LABELS: Record<string, string> = {
+  vendas: 'Vendas',
+  captura: 'Captura',
+  obrigado: 'Obrigado',
+  blog: 'Blog',
+  site: 'Site',
+  checkout: 'Checkout',
+};
+
 type StatusLabel = "Online" | "Offline" | "Lento" | "Soft 404";
 
 interface StatusEntry {
@@ -53,6 +62,7 @@ interface PageEntry {
   specialist?: string | null;
   productId?: string | null;
   product?: string | null;
+  pageType?: string;
 }
 
 interface HistoryData {
@@ -351,8 +361,8 @@ export default function ClientDetailPage() {
             {expandedSpecialists.has(spec.name) && (
               <div className="settings-section-content">
                 {spec.products.map(prod => (
-                  <div key={prod.name} style={{ marginBottom: "1.5rem" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                  <div key={prod.name} className="product-card">
+                    <div className="product-card-header">
                       <Package size={16} />
                       <strong>{prod.name}</strong>
                       <span className="form-hint">({prod.pages.length} pagina{prod.pages.length !== 1 ? 's' : ''})</span>
@@ -377,9 +387,14 @@ export default function ClientDetailPage() {
                             return (
                               <tr key={page.id}>
                                 <td>
-                                  <Link href={`/pages/${page.id}`} className="page-name-link">
-                                    {page.name}
-                                  </Link>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span className={`page-type-badge page-type-${page.pageType || 'site'}`}>
+                                      {PAGE_TYPE_LABELS[page.pageType || 'site']}
+                                    </span>
+                                    <Link href={`/pages/${page.id}`} className="page-name-link">
+                                      {page.name}
+                                    </Link>
+                                  </div>
                                 </td>
                                 <td>
                                   <a href={page.url} target="_blank" rel="noopener noreferrer" className="url-link">

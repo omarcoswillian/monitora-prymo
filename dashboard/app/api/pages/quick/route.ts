@@ -16,6 +16,7 @@ interface QuickPageRequest {
   specialistName: string
   pageName: string
   url: string
+  pageType?: string
 }
 
 export async function POST(request: Request) {
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json()) as QuickPageRequest
-    const { clientName, specialistName, pageName, url } = body
+    const { clientName, specialistName, pageName, url, pageType } = body
 
     if (!clientName?.trim() || !specialistName?.trim() || !pageName?.trim() || !url?.trim()) {
       return NextResponse.json(
@@ -160,6 +161,7 @@ export async function POST(request: Request) {
         interval: 30000,
         timeout: 10000,
         enabled: true,
+        page_type: pageType || 'site',
       })
       .select('id, name, url')
       .single()

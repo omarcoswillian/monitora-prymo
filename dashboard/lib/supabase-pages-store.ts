@@ -19,6 +19,7 @@ export interface PageEntry {
   specialist?: string | null
   productId?: string | null
   product?: string | null
+  pageType?: string | null
   contentRules?: Array<{ text: string; type: string }> | null
   sslExpiresAt?: string | null
   sslStatus?: string | null
@@ -34,6 +35,7 @@ export type PageInput = {
   soft404Patterns?: string[]
   specialistId?: string | null
   productId?: string | null
+  pageType?: string | null
   contentRules?: Array<{ text: string; type: string }> | null
 }
 
@@ -65,6 +67,7 @@ function toPageEntry(db: DbPageWithJoins): PageEntry {
     specialist: db.specialists?.name || null,
     productId: db.product_id || null,
     product: db.products?.name || null,
+    pageType: db.page_type || 'site',
     contentRules: db.content_rules || null,
     sslExpiresAt: db.ssl_expires_at || null,
     sslStatus: db.ssl_status || null,
@@ -132,6 +135,7 @@ export async function createPage(input: PageInput): Promise<PageEntry> {
 
   if (input.specialistId) insertData.specialist_id = input.specialistId
   if (input.productId) insertData.product_id = input.productId
+  if (input.pageType) insertData.page_type = input.pageType
 
   const { data, error } = await supabase
     .from('pages')
@@ -162,6 +166,7 @@ export async function updatePage(id: string, input: Partial<PageInput>): Promise
   if (input.specialistId !== undefined) updateData.specialist_id = input.specialistId || null
   if (input.productId !== undefined) updateData.product_id = input.productId || null
   if (input.contentRules !== undefined) updateData.content_rules = input.contentRules || []
+  if (input.pageType !== undefined) updateData.page_type = input.pageType || 'site'
 
   const { data, error } = await supabase
     .from('pages')

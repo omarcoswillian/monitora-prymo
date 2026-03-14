@@ -33,6 +33,7 @@ export default function PageFormModal({
   const [clientName, setClientName] = useState('')
   const [specialistName, setSpecialistName] = useState('')
   const [pageName, setPageName] = useState('')
+  const [pageType, setPageType] = useState('site')
   const [url, setUrl] = useState('')
   const [errors, setErrors] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
@@ -54,6 +55,7 @@ export default function PageFormModal({
           setClientName(page.client || '')
           setSpecialistName(page.specialist || '')
           setPageName(page.name || '')
+          setPageType(page.pageType || 'site')
           setUrl(page.url || '')
         })
         .catch(() => setErrors(['Erro ao carregar pagina']))
@@ -62,6 +64,7 @@ export default function PageFormModal({
       setClientName('')
       setSpecialistName('')
       setPageName('')
+      setPageType('site')
       setUrl('')
       setErrors([])
       setCredentials(null)
@@ -87,6 +90,7 @@ export default function PageFormModal({
             client: clientName,
             name: pageName,
             url,
+            pageType,
             interval: editData?.interval || 30000,
             timeout: editData?.timeout || 10000,
             enabled: editData?.enabled ?? true,
@@ -108,6 +112,7 @@ export default function PageFormModal({
             clientName: clientName.trim(),
             specialistName: specialistName.trim(),
             pageName: pageName.trim(),
+            pageType,
             url: url.trim(),
           }),
         })
@@ -240,6 +245,23 @@ export default function PageFormModal({
                   placeholder="Ex: Home Page"
                   required
                 />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="pageType">Tipo de Pagina</label>
+                <select
+                  id="pageType"
+                  value={pageType}
+                  onChange={e => setPageType(e.target.value)}
+                  className="input"
+                >
+                  <option value="site">Site / Institucional</option>
+                  <option value="vendas">Pagina de Vendas</option>
+                  <option value="captura">Pagina de Captura</option>
+                  <option value="obrigado">Pagina de Obrigado</option>
+                  <option value="blog">Blog</option>
+                  <option value="checkout">Checkout</option>
+                </select>
               </div>
 
               <div className="form-group">

@@ -77,6 +77,7 @@ export async function PUT(
       soft404Patterns: data.soft404Patterns ?? existing.soft404Patterns,
       specialistId: data.specialistId !== undefined ? data.specialistId : existing.specialistId,
       productId: data.productId !== undefined ? data.productId : existing.productId,
+      pageType: data.pageType !== undefined ? data.pageType : existing.pageType,
     })
 
     return NextResponse.json(updated)
