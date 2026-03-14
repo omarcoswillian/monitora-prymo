@@ -61,14 +61,14 @@ export const authOptions: NextAuthOptions = {
 
         // 3. If not found by email, try finding by client name (for /login-cliente)
         if (!user) {
-          const { data: client } = await supabase
+          // Search all clients matching the name (handles duplicates/accents)
+          const { data: clients } = await supabase
             .from('clients')
             .select('id, name')
             .ilike('name', email)
-            .single()
 
-          if (client) {
-            // Find user associated with this client
+          // Try each matching client until we find one with a user association
+          for (const client of (clients || [])) {
             const { data: assoc } = await supabase
               .from('user_clients')
               .select('user_id')
@@ -85,6 +85,7 @@ export const authOptions: NextAuthOptions = {
 
               if (clientUser) {
                 user = clientUser
+                break
               }
             }
           }
