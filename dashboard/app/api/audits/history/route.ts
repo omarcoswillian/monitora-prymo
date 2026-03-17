@@ -12,9 +12,18 @@ interface AuditScores {
   seo: number | null
 }
 
+interface WebVitals {
+  fcp: number | null
+  lcp: number | null
+  tbt: number | null
+  cls: number | null
+  speedIndex: number | null
+}
+
 interface AuditHistoryResponse {
   date: string
   scores: AuditScores
+  webVitals: WebVitals
 }
 
 export async function GET(request: NextRequest) {
@@ -41,7 +50,7 @@ export async function GET(request: NextRequest) {
     // Get audits for the specified page, last 30 entries
     const { data: audits, error } = await supabase
       .from('audit_history')
-      .select('performance_score, accessibility_score, best_practices_score, seo_score, audited_at')
+      .select('performance_score, accessibility_score, best_practices_score, seo_score, fcp, lcp, tbt, cls, speed_index, audited_at')
       .eq('page_id', pageId)
       .order('audited_at', { ascending: true })
       .limit(30)
@@ -63,6 +72,13 @@ export async function GET(request: NextRequest) {
         accessibility: audit.accessibility_score,
         bestPractices: audit.best_practices_score,
         seo: audit.seo_score,
+      },
+      webVitals: {
+        fcp: audit.fcp ?? null,
+        lcp: audit.lcp ?? null,
+        tbt: audit.tbt ?? null,
+        cls: audit.cls ?? null,
+        speedIndex: audit.speed_index ?? null,
       },
     }))
 

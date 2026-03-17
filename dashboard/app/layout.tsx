@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "prymo",
+  title: "Prymo - Pages",
   description: "Dashboard de monitoramento de paginas web",
 };
 

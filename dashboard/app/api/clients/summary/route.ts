@@ -58,15 +58,17 @@ export async function GET() {
     const pagesCounts = countByClient(pagesRes.data)
     const usersCounts = countByClient(usersRes.data)
 
-    const result: ClientSummary[] = clients.map(client => ({
-      id: client.id,
-      name: client.name,
-      specialistsCount: specialistsCounts.get(client.id) || 0,
-      productsCount: productsCounts.get(client.id) || 0,
-      pagesCount: pagesCounts.get(client.id) || 0,
-      usersCount: usersCounts.get(client.id) || 0,
-      createdAt: client.created_at,
-    }))
+    const result: ClientSummary[] = clients
+      .filter(client => (pagesCounts.get(client.id) || 0) > 0)
+      .map(client => ({
+        id: client.id,
+        name: client.name,
+        specialistsCount: specialistsCounts.get(client.id) || 0,
+        productsCount: productsCounts.get(client.id) || 0,
+        pagesCount: pagesCounts.get(client.id) || 0,
+        usersCount: usersCounts.get(client.id) || 0,
+        createdAt: client.created_at,
+      }))
 
     return NextResponse.json(result)
   } catch (error) {

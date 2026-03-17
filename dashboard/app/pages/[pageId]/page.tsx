@@ -80,9 +80,18 @@ interface AuditScores {
   seo: number | null
 }
 
+interface WebVitals {
+  fcp: number | null
+  lcp: number | null
+  tbt: number | null
+  cls: number | null
+  speedIndex: number | null
+}
+
 interface AuditHistoryEntry {
   date: string
   scores: AuditScores
+  webVitals?: WebVitals
 }
 
 interface PageAuditEntry {
@@ -91,6 +100,7 @@ interface PageAuditEntry {
   date: string
   audit: {
     scores: AuditScores | null
+    webVitals: WebVitals | null
     success: boolean
   }
 }
@@ -148,6 +158,43 @@ function getScoreClass(score: number | null): string {
   if (score >= 90) return 'score-good'
   if (score >= 50) return 'score-ok'
   return 'score-bad'
+}
+
+// Web Vitals thresholds (based on Google's official thresholds)
+function getVitalRating(metric: string, value: number | null): 'good' | 'needs-improvement' | 'poor' | null {
+  if (value === null) return null
+  switch (metric) {
+    case 'fcp':
+      return value <= 1800 ? 'good' : value <= 3000 ? 'needs-improvement' : 'poor'
+    case 'lcp':
+      return value <= 2500 ? 'good' : value <= 4000 ? 'needs-improvement' : 'poor'
+    case 'tbt':
+      return value <= 200 ? 'good' : value <= 600 ? 'needs-improvement' : 'poor'
+    case 'cls':
+      return value <= 0.1 ? 'good' : value <= 0.25 ? 'needs-improvement' : 'poor'
+    case 'speedIndex':
+      return value <= 3400 ? 'good' : value <= 5800 ? 'needs-improvement' : 'poor'
+    default:
+      return null
+  }
+}
+
+function formatVitalValue(metric: string, value: number | null): string {
+  if (value === null) return '-'
+  if (metric === 'cls') return value.toFixed(3)
+  if (value >= 1000) return `${(value / 1000).toFixed(1)} s`
+  return `${Math.round(value)} ms`
+}
+
+function getVitalLabel(metric: string): string {
+  switch (metric) {
+    case 'fcp': return 'First Contentful Paint'
+    case 'lcp': return 'Largest Contentful Paint'
+    case 'tbt': return 'Total Blocking Time'
+    case 'cls': return 'Cumulative Layout Shift'
+    case 'speedIndex': return 'Speed Index'
+    default: return metric
+  }
 }
 
 function getIncidentBadgeClass(incident: IncidentEntry): string {
@@ -381,6 +428,7 @@ export default function PageDetailPage() {
   }
 
   const auditScores = pageAudit?.audit?.scores
+  const webVitals = pageAudit?.audit?.webVitals
 
   return (
     <AppShell>
@@ -504,6 +552,41 @@ export default function PageDetailPage() {
               <div className="audit-score-value">{auditScores.seo ?? '-'}</div>
             </div>
           </div>
+
+          {/* Web Vitals Metrics */}
+          {webVitals && (webVitals.fcp !== null || webVitals.lcp !== null || webVitals.tbt !== null || webVitals.cls !== null || webVitals.speedIndex !== null) && (
+            <div className="web-vitals-section">
+              <h3 className="chart-title" style={{ marginBottom: '0.75rem' }}>Metricas</h3>
+              <div className="web-vitals-grid">
+                {(['fcp', 'lcp', 'tbt', 'cls', 'speedIndex'] as const).map((metric) => {
+                  const value = webVitals[metric]
+                  const rating = getVitalRating(metric, value)
+                  return (
+                    <div key={metric} className={`web-vital-card ${rating ? `vital-${rating}` : ''}`}>
+                      <div className="web-vital-indicator">
+                        {rating === 'good' ? (
+                          <span className="vital-dot vital-dot-good" />
+                        ) : rating === 'needs-improvement' ? (
+                          <span className="vital-square vital-dot-warning" />
+                        ) : rating === 'poor' ? (
+                          <span className="vital-triangle vital-dot-poor" />
+                        ) : null}
+                      </div>
+                      <div className="web-vital-label">{getVitalLabel(metric)}</div>
+                      <div className={`web-vital-value ${rating ? `vital-value-${rating}` : ''}`}>
+                        {formatVitalValue(metric, value)}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="web-vitals-legend">
+                <span className="vital-legend-item"><span className="vital-triangle vital-dot-poor" /> Ruim</span>
+                <span className="vital-legend-item"><span className="vital-square vital-dot-warning" /> Precisa melhorar</span>
+                <span className="vital-legend-item"><span className="vital-dot vital-dot-good" /> Bom</span>
+              </div>
+            </div>
+          )}
 
           {/* Audit History Chart */}
           {auditHistory.length > 1 && (

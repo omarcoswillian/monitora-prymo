@@ -12,6 +12,14 @@ interface AuditScores {
   seo: number | null
 }
 
+interface WebVitals {
+  fcp: number | null
+  lcp: number | null
+  tbt: number | null
+  cls: number | null
+  speedIndex: number | null
+}
+
 interface PageAuditEntry {
   pageId: string
   url: string
@@ -20,6 +28,7 @@ interface PageAuditEntry {
     url: string
     timestamp: string
     scores: AuditScores | null
+    webVitals: WebVitals | null
     strategy: 'mobile' | 'desktop'
     success: boolean
     error?: string
@@ -52,7 +61,7 @@ async function getLatestAudits(): Promise<Map<string, PageAuditEntry>> {
   // Get audits without join (the pages join was failing silently)
   const { data: audits, error } = await supabase
     .from('audit_history')
-    .select('id, page_id, performance_score, accessibility_score, best_practices_score, seo_score, audited_at')
+    .select('id, page_id, performance_score, accessibility_score, best_practices_score, seo_score, fcp, lcp, tbt, cls, speed_index, audited_at')
     .order('audited_at', { ascending: false })
 
   if (error || !audits) {
@@ -76,6 +85,13 @@ async function getLatestAudits(): Promise<Map<string, PageAuditEntry>> {
             accessibility: audit.accessibility_score,
             bestPractices: audit.best_practices_score,
             seo: audit.seo_score,
+          },
+          webVitals: {
+            fcp: audit.fcp ?? null,
+            lcp: audit.lcp ?? null,
+            tbt: audit.tbt ?? null,
+            cls: audit.cls ?? null,
+            speedIndex: audit.speed_index ?? null,
           },
           strategy: 'mobile',
           success: true,

@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 interface HourlyAvg {
   hour: string
-  avg: number
+  avg: number | null
 }
 
 interface DailyUptime {
@@ -171,13 +171,13 @@ export async function GET(request: Request) {
       hourlyData.set(hourKey, existing)
     }
 
-    // Fill all 24 hour buckets (no gaps in chart)
+    // Fill all 24 hour buckets (null for hours without data)
     const allHours = generateHourBuckets(timezone)
     const responseTimeAvg: HourlyAvg[] = allHours.map(hour => {
       const data = hourlyData.get(hour)
       return {
         hour,
-        avg: data ? Math.round(data.total / data.count) : 0,
+        avg: data ? Math.round(data.total / data.count) : null,
       }
     })
 

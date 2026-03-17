@@ -20,7 +20,7 @@ import {
 
 interface HourlyAvg {
   hour: string
-  avg: number
+  avg: number | null
 }
 
 interface DailyUptime {
@@ -66,7 +66,23 @@ function CustomChartTooltip({ active, payload, label, suffix, valueLabel, colors
     return null
   }
 
-  const value = payload[0]?.value ?? 0
+  const value = payload[0]?.value
+
+  if (value === null || value === undefined) {
+    return (
+      <div
+        style={{
+          background: colors.tooltipBg,
+          border: `1px solid ${colors.tooltipBorder}`,
+          borderRadius: '6px',
+          padding: '8px 12px',
+        }}
+      >
+        <p style={{ color: colors.tooltipText, margin: 0, marginBottom: 4 }}>{label}</p>
+        <p style={{ color: colors.tooltipText, margin: 0 }}>Sem dados</p>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -203,6 +219,7 @@ export function ResponseTimeChart({ data, slaResponseTime }: ResponseTimeChartPr
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4 }}
+            connectNulls={true}
           />
         </LineChart>
       </ResponsiveContainer>

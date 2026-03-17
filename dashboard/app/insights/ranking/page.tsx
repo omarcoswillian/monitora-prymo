@@ -181,17 +181,22 @@ export default function RankingPage() {
     return groups
   }, [ranking])
 
-  // For each client group, split into best and worst
+  // For each client group, split into best and worst (no overlap)
   const clientRankings = useMemo(() => {
     const result: { client: string; best: RankedPage[]; worst: RankedPage[] }[] = []
     for (const [client, pages] of groupedByClient) {
       const sorted = [...pages].sort((a, b) => b.healthScore - a.healthScore)
-      const half = Math.max(1, Math.ceil(sorted.length / 2))
-      result.push({
-        client,
-        best: sorted.slice(0, half),
-        worst: [...sorted].sort((a, b) => a.healthScore - b.healthScore).slice(0, half),
-      })
+      if (sorted.length <= 1) {
+        // Only one page: show in best only
+        result.push({ client, best: sorted, worst: [] })
+      } else {
+        const half = Math.ceil(sorted.length / 2)
+        result.push({
+          client,
+          best: sorted.slice(0, half),
+          worst: sorted.slice(half),
+        })
+      }
     }
     return result
   }, [groupedByClient])

@@ -3,6 +3,14 @@ import { logEvent } from './event-logger'
 
 const PAGESPEED_API_URL = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed'
 
+export interface WebVitals {
+  fcp: number | null       // First Contentful Paint (ms)
+  lcp: number | null       // Largest Contentful Paint (ms)
+  tbt: number | null       // Total Blocking Time (ms)
+  cls: number | null       // Cumulative Layout Shift
+  speedIndex: number | null // Speed Index (ms)
+}
+
 export interface AuditScores {
   performance: number | null
   accessibility: number | null
@@ -14,6 +22,7 @@ export interface AuditResult {
   url: string
   timestamp: string
   scores: AuditScores | null
+  webVitals: WebVitals | null
   strategy: 'mobile' | 'desktop'
   success: boolean
   error?: string
@@ -41,6 +50,39 @@ function extractScore(data: Record<string, unknown>, category: string): number |
   } catch {
     return null
   }
+}
+
+function extractWebVitals(data: Record<string, unknown>): WebVitals {
+  const vitals: WebVitals = { fcp: null, lcp: null, tbt: null, cls: null, speedIndex: null }
+
+  try {
+    const lighthouse = data.lighthouseResult as Record<string, unknown> | undefined
+    if (!lighthouse) return vitals
+
+    const audits = lighthouse.audits as Record<string, Record<string, unknown>> | undefined
+    if (!audits) return vitals
+
+    const getNumericValue = (auditId: string): number | null => {
+      const audit = audits[auditId]
+      if (!audit || typeof audit.numericValue !== 'number') return null
+      return Math.round(audit.numericValue * 100) / 100
+    }
+
+    vitals.fcp = getNumericValue('first-contentful-paint')
+    vitals.lcp = getNumericValue('largest-contentful-paint')
+    vitals.tbt = getNumericValue('total-blocking-time')
+    vitals.speedIndex = getNumericValue('speed-index')
+
+    // CLS uses numericValue directly (not in ms)
+    const clsAudit = audits['cumulative-layout-shift']
+    if (clsAudit && typeof clsAudit.numericValue === 'number') {
+      vitals.cls = Math.round(clsAudit.numericValue * 10000) / 10000
+    }
+  } catch {
+    // Return partial results
+  }
+
+  return vitals
 }
 
 export interface AuditOptions {
@@ -120,11 +162,14 @@ export async function runPageSpeedAudit(url: string, options?: AuditOptions, pag
       seo: extractScore(data, 'seo'),
     }
 
+    const webVitals = extractWebVitals(data)
+
     // Log success event
     if (pageId) {
       try {
         await logEvent(pageId, 'pagespeed_audit_completed', `Auditoria concluida: Performance=${scores.performance}, SEO=${scores.seo}`, {
           scores,
+          webVitals,
           strategy,
         }, 'pagespeed')
       } catch { /* fire-and-forget */ }
@@ -134,6 +179,7 @@ export async function runPageSpeedAudit(url: string, options?: AuditOptions, pag
       url,
       timestamp: new Date().toISOString(),
       scores,
+      webVitals,
       strategy,
       success: true,
     }
@@ -154,6 +200,7 @@ export async function runPageSpeedAudit(url: string, options?: AuditOptions, pag
       url,
       timestamp: new Date().toISOString(),
       scores: null,
+      webVitals: null,
       strategy,
       success: false,
       error: errorMessage,
@@ -175,27 +222,30 @@ export async function saveAudit(pageId: string, url: string, audit: AuditResult)
       .lte('audited_at', `${date}T23:59:59`)
       .limit(1)
 
+    const auditData = {
+      performance_score: audit.scores.performance,
+      accessibility_score: audit.scores.accessibility,
+      best_practices_score: audit.scores.bestPractices,
+      seo_score: audit.scores.seo,
+      fcp: audit.webVitals?.fcp ? Math.round(audit.webVitals.fcp) : null,
+      lcp: audit.webVitals?.lcp ? Math.round(audit.webVitals.lcp) : null,
+      tbt: audit.webVitals?.tbt ? Math.round(audit.webVitals.tbt) : null,
+      cls: audit.webVitals?.cls ?? null,
+      speed_index: audit.webVitals?.speedIndex ? Math.round(audit.webVitals.speedIndex) : null,
+      audited_at: timestamp,
+    }
+
     if (existing && existing.length > 0) {
       // Update existing audit for today
       await supabase
         .from('audit_history')
-        .update({
-          performance_score: audit.scores.performance,
-          accessibility_score: audit.scores.accessibility,
-          best_practices_score: audit.scores.bestPractices,
-          seo_score: audit.scores.seo,
-          audited_at: timestamp,
-        })
+        .update(auditData)
         .eq('id', existing[0].id)
     } else {
       // Insert new audit
       await supabase.from('audit_history').insert({
         page_id: pageId,
-        performance_score: audit.scores.performance,
-        accessibility_score: audit.scores.accessibility,
-        best_practices_score: audit.scores.bestPractices,
-        seo_score: audit.scores.seo,
-        audited_at: timestamp,
+        ...auditData,
       })
     }
 
