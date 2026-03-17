@@ -14,6 +14,7 @@ const SALT_ROUNDS = 12
 interface QuickPageRequest {
   clientName: string
   specialistName: string
+  productName?: string
   pageName: string
   url: string
   pageType?: string
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json()) as QuickPageRequest
-    const { clientName, specialistName, pageName, url, pageType } = body
+    const { clientName, specialistName, productName, pageName, url, pageType } = body
 
     if (!clientName?.trim() || !specialistName?.trim() || !pageName?.trim() || !url?.trim()) {
       return NextResponse.json(
@@ -122,12 +123,15 @@ export async function POST(request: Request) {
       specialist = newSpec
     }
 
-    // 3. Get or create default product for specialist
+    // 3. Get or create product for specialist
+    const resolvedProductName = productName?.trim() || 'Geral'
+    const resolvedProductSlug = slugify(resolvedProductName)
+
     let { data: product } = await supabase
       .from('products')
       .select('id')
       .eq('specialist_id', specialist.id)
-      .limit(1)
+      .ilike('name', resolvedProductName)
       .single()
 
     if (!product) {
@@ -136,8 +140,8 @@ export async function POST(request: Request) {
         .insert({
           client_id: client.id,
           specialist_id: specialist.id,
-          name: 'Geral',
-          slug: 'geral',
+          name: resolvedProductName,
+          slug: resolvedProductSlug,
           status: 'active',
         })
         .select('id')

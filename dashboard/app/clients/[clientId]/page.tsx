@@ -111,6 +111,32 @@ function getStatusBadge(entry: StatusEntry | undefined) {
   return <span className={`badge ${cls}`}>{label}</span>;
 }
 
+function SpecialistCharts({ clientId, specialistName }: { clientId: string; specialistName: string }) {
+  const [data, setData] = useState<HistoryData>({ responseTimeAvg: [], uptimeDaily: [] });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const url = `/api/history?client=${encodeURIComponent(clientId)}&specialist=${encodeURIComponent(specialistName)}`;
+    fetch(url)
+      .then(r => r.json())
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [clientId, specialistName]);
+
+  if (loading) return <div className="loading" style={{ padding: "1rem" }}>Carregando graficos...</div>;
+
+  const hasData = data.responseTimeAvg.some(d => d.avg !== null) || data.uptimeDaily.length > 0;
+  if (!hasData) return null;
+
+  return (
+    <div className="charts-row" style={{ marginBottom: "1rem" }}>
+      <ResponseTimeChart data={data.responseTimeAvg} />
+      <UptimeChart data={data.uptimeDaily} />
+    </div>
+  );
+}
+
 export default function ClientDetailPage() {
   const params = useParams();
   const clientId = decodeURIComponent(params.clientId as string);
@@ -360,6 +386,7 @@ export default function ClientDetailPage() {
 
             {expandedSpecialists.has(spec.name) && (
               <div className="settings-section-content">
+                <SpecialistCharts clientId={clientId} specialistName={spec.name} />
                 {spec.products.map(prod => (
                   <div key={prod.name} className="product-card">
                     <div className="product-card-header">

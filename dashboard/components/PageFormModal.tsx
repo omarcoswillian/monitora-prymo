@@ -32,6 +32,7 @@ export default function PageFormModal({
 }: PageFormModalProps) {
   const [clientName, setClientName] = useState('')
   const [specialistName, setSpecialistName] = useState('')
+  const [productName, setProductName] = useState('')
   const [pageName, setPageName] = useState('')
   const [pageType, setPageType] = useState('site')
   const [url, setUrl] = useState('')
@@ -54,6 +55,7 @@ export default function PageFormModal({
           setEditData(page)
           setClientName(page.client || '')
           setSpecialistName(page.specialist || '')
+          setProductName(page.product || '')
           setPageName(page.name || '')
           setPageType(page.pageType || 'site')
           setUrl(page.url || '')
@@ -63,6 +65,7 @@ export default function PageFormModal({
     } else if (isOpen && mode === 'create') {
       setClientName('')
       setSpecialistName('')
+      setProductName('')
       setPageName('')
       setPageType('site')
       setUrl('')
@@ -87,10 +90,12 @@ export default function PageFormModal({
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            client: clientName,
-            name: pageName,
-            url,
+            client: clientName.trim(),
+            name: pageName.trim(),
+            url: url.trim(),
             pageType,
+            specialistName: specialistName.trim(),
+            productName: productName.trim() || undefined,
             interval: editData?.interval || 30000,
             timeout: editData?.timeout || 10000,
             enabled: editData?.enabled ?? true,
@@ -111,6 +116,7 @@ export default function PageFormModal({
           body: JSON.stringify({
             clientName: clientName.trim(),
             specialistName: specialistName.trim(),
+            productName: productName.trim() || undefined,
             pageName: pageName.trim(),
             pageType,
             url: url.trim(),
@@ -136,6 +142,7 @@ export default function PageFormModal({
         }
 
         // Clear form for next entry
+        setProductName('')
         setPageName('')
         setUrl('')
       }
@@ -232,6 +239,19 @@ export default function PageFormModal({
                   placeholder="Nome do especialista (ex: Luana Carolina)"
                   required
                 />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="productName">Produto</label>
+                <input
+                  type="text"
+                  id="productName"
+                  value={productName}
+                  onChange={e => setProductName(e.target.value)}
+                  className="input"
+                  placeholder="Nome do produto (ex: Curso de Marketing)"
+                />
+                <span className="form-hint">Opcional. Se vazio, sera agrupado como "Geral".</span>
               </div>
 
               <div className="form-group">

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getPageById, updatePage, deletePage, validatePageInput } from '@/lib/supabase-pages-store'
 import { getUserContext, hasClientAccess } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
+import { slugify } from '@/lib/slugify'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,6 +69,73 @@ export async function PUT(
       )
     }
 
+    // Resolve specialist name → ID
+    let resolvedSpecialistId = data.specialistId !== undefined ? data.specialistId : existing.specialistId
+    if (data.specialistName) {
+      const clientName = data.client?.trim() ?? existing.client
+      // Get client ID
+      const { data: client } = await supabase
+        .from('clients')
+        .select('id')
+        .ilike('name', clientName)
+        .single()
+
+      if (client) {
+        let { data: specialist } = await supabase
+          .from('specialists')
+          .select('id')
+          .eq('client_id', client.id)
+          .ilike('name', data.specialistName.trim())
+          .single()
+
+        if (!specialist) {
+          const { data: newSpec } = await supabase
+            .from('specialists')
+            .insert({
+              client_id: client.id,
+              name: data.specialistName.trim(),
+              slug: slugify(data.specialistName.trim()),
+              status: 'active',
+            })
+            .select('id')
+            .single()
+          specialist = newSpec
+        }
+
+        if (specialist) {
+          resolvedSpecialistId = specialist.id
+
+          // Resolve product name → ID
+          const resolvedProductName = data.productName?.trim() || 'Geral'
+          let { data: product } = await supabase
+            .from('products')
+            .select('id')
+            .eq('specialist_id', specialist.id)
+            .ilike('name', resolvedProductName)
+            .single()
+
+          if (!product) {
+            const { data: newProd } = await supabase
+              .from('products')
+              .insert({
+                client_id: client.id,
+                specialist_id: specialist.id,
+                name: resolvedProductName,
+                slug: slugify(resolvedProductName),
+                status: 'active',
+              })
+              .select('id')
+              .single()
+            product = newProd
+          }
+
+          if (product) {
+            data.productId = product.id
+          }
+        }
+      }
+    }
+
     const updated = await updatePage(id, {
       client: data.client?.trim() ?? existing.client,
       name: data.name?.trim() ?? existing.name,
@@ -75,7 +144,7 @@ export async function PUT(
       timeout: data.timeout ?? existing.timeout,
       enabled: data.enabled ?? existing.enabled,
       soft404Patterns: data.soft404Patterns ?? existing.soft404Patterns,
-      specialistId: data.specialistId !== undefined ? data.specialistId : existing.specialistId,
+      specialistId: resolvedSpecialistId,
       productId: data.productId !== undefined ? data.productId : existing.productId,
       pageType: data.pageType !== undefined ? data.pageType : existing.pageType,
     })

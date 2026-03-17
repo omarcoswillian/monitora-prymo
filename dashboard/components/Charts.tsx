@@ -173,7 +173,7 @@ export function ResponseTimeChart({ data, slaResponseTime }: ResponseTimeChartPr
 
   const formattedData = data.map((d) => ({
     hour: d.hour,
-    avg: d.avg,
+    avg: d.avg ?? 0,
     label: d.hour.split(' ')[1] || d.hour,
   }))
 

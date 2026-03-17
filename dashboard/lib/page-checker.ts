@@ -398,7 +398,7 @@ export async function updatePageStatus(result: CheckResult): Promise<{ previousS
     .single()
 
   const previousStatus = (page?.current_status || 'ONLINE') as PageStatus
-  const isFailure = result.pageStatus !== 'ONLINE' && result.pageStatus !== 'LENTO'
+  const isFailure = result.pageStatus !== 'ONLINE'
 
   const update: Record<string, unknown> = {
     current_status: result.pageStatus,
