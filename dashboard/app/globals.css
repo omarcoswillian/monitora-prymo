@@ -251,7 +251,7 @@ body {
   align-items: center;
   justify-content: center;
   background: var(--text-primary);
-  border-radius: var(--radius-sm);
+  border-radius: 100px;
   color: var(--bg-base);
   flex-shrink: 0;
 }
