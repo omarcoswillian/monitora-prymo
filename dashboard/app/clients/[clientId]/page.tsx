@@ -396,7 +396,14 @@ export default function ClientDetailPage() {
                     </div>
 
                     <div className="table-container">
-                      <table>
+                      <table style={{ tableLayout: 'fixed', width: '100%' }}>
+                        <colgroup>
+                          <col style={{ width: '20%' }} />
+                          <col style={{ width: '38%' }} />
+                          <col style={{ width: '12%' }} />
+                          <col style={{ width: '12%' }} />
+                          <col style={{ width: '18%' }} />
+                        </colgroup>
                         <thead>
                           <tr>
                             <th>Pagina</th>

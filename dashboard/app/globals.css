@@ -942,6 +942,8 @@ table {
 th, td {
   padding: 0.875rem 1rem;
   text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 th {
@@ -1924,6 +1926,13 @@ tr:hover .actions {
   color: var(--text-secondary);
   text-decoration: none;
   transition: color 0.15s;
+  overflow: hidden;
+}
+
+.url-link .url {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .url-link:hover {
