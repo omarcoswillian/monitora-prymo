@@ -1,23 +1,41 @@
 import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
+import { randomBytes } from 'crypto'
 import bcrypt from 'bcryptjs'
 import { supabase } from '@/lib/supabase'
 
 // Validate required environment variables at startup
 const secret = process.env.NEXTAUTH_SECRET
 
-// Log missing environment variables (helps debugging in Vercel logs)
 if (typeof window === 'undefined') {
-  if (!secret) {
-    console.error('[NextAuth] Missing required environment variable: NEXTAUTH_SECRET')
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: NEXTAUTH_SECRET is required in production.')
   }
 }
 
-// Use a fallback secret for development only
-const effectiveSecret = secret || (process.env.NODE_ENV === 'development' ? 'dev-secret-change-in-production' : undefined)
+// Use a strong random fallback for development only (changes per restart)
+const effectiveSecret = secret || (process.env.NODE_ENV === 'development' ? randomBytes(32).toString('hex') : undefined)
 
-if (!effectiveSecret) {
-  console.error('FATAL: NEXTAUTH_SECRET is required in production. Authentication will fail.')
+// Rate limiting for login attempts (per IP/email)
+const loginAttempts = new Map<string, { count: number; resetAt: number }>()
+const MAX_ATTEMPTS = 5
+const WINDOW_MS = 15 * 60 * 1000 // 15 minutes
+
+function checkLoginRateLimit(key: string): boolean {
+  const now = Date.now()
+  const entry = loginAttempts.get(key)
+
+  if (!entry || now > entry.resetAt) {
+    loginAttempts.set(key, { count: 1, resetAt: now + WINDOW_MS })
+    return true
+  }
+
+  if (entry.count >= MAX_ATTEMPTS) {
+    return false
+  }
+
+  entry.count++
+  return true
 }
 
 export const authOptions: NextAuthOptions = {
@@ -37,6 +55,12 @@ export const authOptions: NextAuthOptions = {
 
         const email = credentials.email.trim()
         const password = credentials.password
+
+        // Rate limit check
+        if (!checkLoginRateLimit(email.toLowerCase())) {
+          console.warn(`[Auth] Rate limited login for: ${email}`)
+          return null
+        }
 
         // 1. Check env-var admin (backward compatibility)
         const adminEmail = process.env.ADMIN_EMAIL?.trim()

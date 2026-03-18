@@ -77,6 +77,16 @@ export async function DELETE(
     }
 
     const { id } = await params
+
+    // Verify access to the product's client before deleting
+    const existing = await getProductById(id)
+    if (!existing) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+    }
+    if (!hasClientAccess(ctx, existing.clientId)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const success = await deleteProduct(id)
 
     if (!success) {

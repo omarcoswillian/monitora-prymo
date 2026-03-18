@@ -123,7 +123,7 @@ export async function runPageSpeedAudit(url: string, options?: AuditOptions, pag
 
   try {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 25000)
+    const timeout = setTimeout(() => controller.abort(), 55000)
 
     const response = await fetch(requestUrl, {
       method: 'GET',

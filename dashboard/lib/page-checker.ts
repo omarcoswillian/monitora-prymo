@@ -688,11 +688,13 @@ export async function checkAndRecord(
         })
         .eq('id', page.id)
 
-      if (ssl.status === 'expiring_soon' || ssl.status === 'expired') {
-        const eventType = ssl.status === 'expiring_soon' ? 'ssl_expiring_soon' : 'ssl_expired'
-        const message = ssl.status === 'expiring_soon'
-          ? `Certificado SSL expira em ${ssl.daysRemaining} dias`
-          : 'Certificado SSL expirado!'
+      if (ssl.status === 'expiring_soon' || ssl.status === 'critical' || ssl.status === 'expired') {
+        const eventType = ssl.status === 'expired' ? 'ssl_expired' : 'ssl_expiring_soon'
+        const message = ssl.status === 'expired'
+          ? 'Certificado SSL expirado!'
+          : ssl.status === 'critical'
+            ? `URGENTE: Certificado SSL expira em ${ssl.daysRemaining} dia(s)!`
+            : `Certificado SSL expira em ${ssl.daysRemaining} dias`
 
         logEvent(
           page.id,
@@ -700,6 +702,22 @@ export async function checkAndRecord(
           message,
           { daysRemaining: ssl.daysRemaining, expiresAt: ssl.expiresAt },
         )
+
+        // Create incident for critical SSL (3 days or less) and expired
+        if (ssl.status === 'critical' || ssl.status === 'expired') {
+          const incidentType = ssl.status === 'expired' ? 'SSL_EXPIRED' : 'SSL_EXPIRING'
+          await supabase
+            .from('incidents')
+            .upsert({
+              page_id: page.id,
+              type: incidentType,
+              message,
+              probable_cause: ssl.status === 'expired'
+                ? 'Certificado SSL expirou — site pode mostrar aviso de seguranca'
+                : `Certificado SSL expira em ${ssl.daysRemaining} dia(s) — renovar imediatamente`,
+              check_origin: 'monitor',
+            }, { onConflict: 'page_id', ignoreDuplicates: true })
+        }
 
         // WhatsApp notification for SSL
         if (isWhatsAppConfigured()) {

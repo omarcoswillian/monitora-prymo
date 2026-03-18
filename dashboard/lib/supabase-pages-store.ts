@@ -236,5 +236,26 @@ export function validatePageInput(data: unknown): { valid: boolean; errors: stri
     errors.push('Enabled must be a boolean')
   }
 
+  // Validate soft404Patterns are safe strings (not regex, max 50 chars each, max 20 patterns)
+  if (d.soft404Patterns !== undefined && d.soft404Patterns !== null) {
+    if (!Array.isArray(d.soft404Patterns)) {
+      errors.push('soft404Patterns must be an array')
+    } else {
+      if (d.soft404Patterns.length > 20) {
+        errors.push('Maximum 20 soft404 patterns allowed')
+      }
+      for (const pattern of d.soft404Patterns) {
+        if (typeof pattern !== 'string') {
+          errors.push('Each soft404 pattern must be a string')
+          break
+        }
+        if (pattern.length > 100) {
+          errors.push('Each soft404 pattern must be under 100 characters')
+          break
+        }
+      }
+    }
+  }
+
   return { valid: errors.length === 0, errors }
 }

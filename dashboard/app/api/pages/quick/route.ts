@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { randomBytes } from 'crypto'
 import bcrypt from 'bcryptjs'
 import { supabase } from '@/lib/supabase'
 import { getUserContext } from '@/lib/auth'
@@ -67,8 +68,8 @@ export async function POST(request: Request) {
       client = newClient
       clientCreated = true
 
-      // Auto-create login for new client
-      const password = clientName.trim().toLowerCase().replace(/\s+/g, '') + '123'
+      // Auto-create login for new client with strong random password
+      const password = randomBytes(6).toString('base64url').slice(0, 10)
       const passwordHash = await bcrypt.hash(password, SALT_ROUNDS)
 
       const { data: user, error: userError } = await supabase

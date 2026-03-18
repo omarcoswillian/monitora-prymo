@@ -175,6 +175,16 @@ export async function DELETE(
     }
 
     const { id } = await params
+
+    // Verify access to the page's client before deleting
+    const existing = await getPageById(id)
+    if (!existing) {
+      return NextResponse.json({ error: 'Page not found' }, { status: 404 })
+    }
+    if (!hasClientAccess(ctx, existing.clientId)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const success = await deletePage(id)
 
     if (!success) {

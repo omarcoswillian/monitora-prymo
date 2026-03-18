@@ -54,9 +54,19 @@ interface GroupedReports {
 
 // ===== HELPERS =====
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 function parseMarkdown(content: string): string {
-  // Convert markdown to HTML-like structure for display
-  return content
+  // Sanitize first to prevent XSS, then apply markdown formatting
+  const safe = escapeHtml(content)
+  return safe
     // Headers
     .replace(/^### (.+)$/gm, '<h4>$1</h4>')
     .replace(/^## (.+)$/gm, '<h3>$1</h3>')

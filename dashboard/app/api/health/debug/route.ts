@@ -3,11 +3,17 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { getAllPages } from '@/lib/supabase-pages-store'
 import { getLatestCheck } from '@/lib/supabase-history-store'
 import { checkPage, writeCheckHistory, trackIncident } from '@/lib/page-checker'
+import { getUserContext } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
 
 export async function GET(request: Request) {
+  // Admin-only access
+  const ctx = await getUserContext()
+  if (!ctx?.isAdmin) {
+    return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+  }
   const { searchParams } = new URL(request.url)
   const runTest = searchParams.get('test') === '1'
   const checkMissing = searchParams.get('checkMissing') === '1'

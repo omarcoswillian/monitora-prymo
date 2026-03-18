@@ -5,12 +5,13 @@ export interface SSLCheckResult {
   valid: boolean
   expiresAt: string | null
   daysRemaining: number | null
-  status: 'valid' | 'expiring_soon' | 'expired' | 'error' | 'no_ssl'
+  status: 'valid' | 'expiring_soon' | 'critical' | 'expired' | 'error' | 'no_ssl'
   issuer?: string
   error?: string
 }
 
 const SSL_WARNING_DAYS = 30
+const SSL_CRITICAL_DAYS = 3
 
 /**
  * Check SSL certificate for a given URL.
@@ -42,6 +43,8 @@ export async function checkSSL(pageUrl: string): Promise<SSLCheckResult> {
     let status: SSLCheckResult['status']
     if (daysRemaining <= 0) {
       status = 'expired'
+    } else if (daysRemaining <= SSL_CRITICAL_DAYS) {
+      status = 'critical'
     } else if (daysRemaining <= SSL_WARNING_DAYS) {
       status = 'expiring_soon'
     } else {
