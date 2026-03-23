@@ -8,11 +8,12 @@ on:
 jobs:
   uptime-check:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     steps:
       - name: Trigger uptime check
         run: |
           response=$(curl -s -w "\n%{http_code}" \
+            --max-time 120 \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             "${{ secrets.MONITOR_URL }}/api/cron/uptime")
 
