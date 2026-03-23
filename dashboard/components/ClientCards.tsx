@@ -103,7 +103,7 @@ export default function ClientCards({
   status,
   uptimeDaily,
   audits,
-  slowThreshold = 1500,
+  slowThreshold = 3000,
 }: ClientCardsProps) {
   const clientsMap = new Map<string, ClientStats>()
   const clientPageIds = new Map<string, string[]>()

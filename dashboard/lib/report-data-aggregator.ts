@@ -152,13 +152,13 @@ function parsePageId(pageId: string): { clientName: string; pageName: string } |
 function getStatusLabel(entry: HistoryEntry): string {
   if (entry.statusLabel) return entry.statusLabel
   if (!entry.success) return 'Offline'
-  if (entry.responseTime > 1500) return 'Lento'
+  if (entry.responseTime > 3000) return 'Lento'
   return 'Online'
 }
 
 function calculateUptime(entries: HistoryEntry[]): number {
   if (entries.length === 0) return 100
-  const successful = entries.filter(e => e.success && e.responseTime <= 1500).length
+  const successful = entries.filter(e => e.success && e.responseTime <= 3000).length
   return Math.round((successful / entries.length) * 100 * 10) / 10
 }
 

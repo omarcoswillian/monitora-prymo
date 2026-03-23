@@ -411,7 +411,7 @@ function generateMarkdownReport(data: ReportData): string {
     recommendations.push('Otimizar imagens e recursos para melhorar performance');
   }
 
-  if (data.avgResponseTime > 1500) {
+  if (data.avgResponseTime > 3000) {
     recommendations.push('Avaliar infraestrutura do servidor - tempo de resposta acima do ideal');
   }
 

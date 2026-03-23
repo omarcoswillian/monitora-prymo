@@ -287,7 +287,7 @@ A disponibilidade media foi de ${d.summary.avgUptime}%, considerada ${uptimeStat
 
 ## 2. Situacao Geral
 
-O tempo de resposta medio dos sites monitorados foi de ${d.summary.avgResponseTime}ms. ${d.summary.avgResponseTime > 1500 ? 'Este valor esta acima do recomendado (1500ms) e pode impactar a experiencia do usuario.' : 'Este valor esta dentro do esperado para uma boa experiencia de navegacao.'}
+O tempo de resposta medio dos sites monitorados foi de ${d.summary.avgResponseTime}ms. ${d.summary.avgResponseTime > 3000 ? 'Este valor esta acima do recomendado (3000ms) e pode impactar a experiencia do usuario.' : 'Este valor esta dentro do esperado para uma boa experiencia de navegacao.'}
 
 ${d.clientsSummary.length > 0 ? `Entre os ${d.summary.totalClients} clientes monitorados, ${d.clientsSummary.filter(c => c.uptime < 99).length > 0 ? 'alguns apresentaram disponibilidade abaixo de 99% e devem ser priorizados' : 'todos mantiveram disponibilidade satisfatoria'}.` : ''}
 
@@ -345,7 +345,7 @@ A disponibilidade media foi de ${d.summary.avgUptime}%, considerada ${uptimeStat
 
 ## 2. Situacao Geral do Site
 
-O tempo de resposta medio foi de ${d.summary.avgResponseTime}ms. ${d.summary.avgResponseTime > 1500 ? 'Este valor esta acima do recomendado e pode impactar a experiencia do usuario e as taxas de conversao.' : 'Este valor esta adequado para uma boa experiencia de navegacao.'}
+O tempo de resposta medio foi de ${d.summary.avgResponseTime}ms. ${d.summary.avgResponseTime > 3000 ? 'Este valor esta acima do recomendado e pode impactar a experiencia do usuario e as taxas de conversao.' : 'Este valor esta adequado para uma boa experiencia de navegacao.'}
 
 ${d.bestPages.length > 0 ? `As paginas com melhor desempenho foram: ${d.bestPages.map(p => p.pageName).join(', ')}, mantendo alta disponibilidade e tempos de resposta adequados.` : ''}
 

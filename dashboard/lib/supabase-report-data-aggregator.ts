@@ -104,7 +104,7 @@ interface AuditRow {
   audited_at: string
 }
 
-function calculateUptime(checks: CheckHistoryRow[], slowThreshold: number = 1500): number {
+function calculateUptime(checks: CheckHistoryRow[], slowThreshold: number = 3000): number {
   if (checks.length === 0) return 100
   const successful = checks.filter(c => c.status >= 200 && c.status < 400 && c.response_time <= slowThreshold).length
   return Math.round((successful / checks.length) * 100 * 10) / 10

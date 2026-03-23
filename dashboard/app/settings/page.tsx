@@ -288,7 +288,7 @@ export default function SettingsPage() {
                     type="number"
                     className="input settings-number-input"
                     value={settings.monitoring.slowThreshold}
-                    onChange={(e) => updateMonitoring('slowThreshold', parseInt(e.target.value) || 1500)}
+                    onChange={(e) => updateMonitoring('slowThreshold', parseInt(e.target.value) || 3000)}
                     min={500}
                     max={10000}
                     step={100}

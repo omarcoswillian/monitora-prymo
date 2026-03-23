@@ -149,7 +149,7 @@ interface FeedItem {
 }
 
 
-const DEFAULT_SLOW_THRESHOLD = 1500;
+const DEFAULT_SLOW_THRESHOLD = 3000;
 
 const ERROR_TYPE_LABELS: Record<string, { label: string; tooltip: string }> =
   {

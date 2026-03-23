@@ -60,7 +60,7 @@ export const defaultSettings: Settings = {
   monitoring: {
     checkFrequency: '4x',
     httpTimeout: 8000,
-    slowThreshold: 1500,
+    slowThreshold: 3000,
     soft404Detection: true,
     errorsToOpenIncident: 2,
     autoResolveIncidents: true,

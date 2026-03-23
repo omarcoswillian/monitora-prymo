@@ -47,16 +47,16 @@ export interface CheckResult {
 
 // ===== CONSTANTS =====
 
-export const DEFAULT_SLOW_THRESHOLD_MS = 1500
+export const DEFAULT_SLOW_THRESHOLD_MS = 3000
 const MAX_BODY_SIZE = 50000
 
 const DEFAULT_SOFT_404_PATTERNS = [
-  'not found', 'page not found', '404 error', '404 not found', 'error 404',
+  'page not found', '404 error', '404 not found', 'error 404',
   'page does not exist', 'content not found', 'resource not found',
-  'the page you requested', 'could not be found', 'does not exist',
+  'the page you requested', 'could not be found',
   'no longer available', 'page is missing', 'page has been removed',
-  'pagina nao encontrada', 'página não encontrada', 'nao encontrado',
-  'não encontrado', 'erro 404', 'pagina nao existe', 'página não existe',
+  'pagina nao encontrada', 'página não encontrada',
+  'erro 404', 'pagina nao existe', 'página não existe',
   'pagina inexistente', 'página inexistente', 'conteudo nao encontrado',
   'conteúdo não encontrado', 'recurso nao encontrado', 'recurso não encontrado',
   'esta pagina nao existe', 'esta página não existe', 'pagina removida',
@@ -97,11 +97,32 @@ function isErrorUrlPath(url: string): boolean {
   }
 }
 
+function stripScriptsAndAttributes(html: string): string {
+  // Remove <script>...</script> blocks
+  let stripped = html.replace(/<script[\s\S]*?<\/script>/gi, '')
+  // Remove <style>...</style> blocks
+  stripped = stripped.replace(/<style[\s\S]*?<\/style>/gi, '')
+  // Remove HTML tags (keeping only visible text content)
+  stripped = stripped.replace(/<[^>]+>/g, ' ')
+  return stripped
+}
+
 function detectSoft404(html: string, url: string, customPatterns?: string[]): boolean {
   if (isErrorUrlPath(url)) return true
-  const lowerHtml = html.toLowerCase()
+
+  // Check <title> tag specifically — strong 404 signal
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
+  if (titleMatch) {
+    const title = titleMatch[1].toLowerCase()
+    if (title.includes('not found') || title.includes('404') || title.includes('não encontrad') || title.includes('nao encontrad')) {
+      return true
+    }
+  }
+
+  // Check visible text only (strip scripts, styles, and HTML tags)
+  const visibleText = stripScriptsAndAttributes(html).toLowerCase()
   const patterns = [...DEFAULT_SOFT_404_PATTERNS, ...(customPatterns || [])]
-  return patterns.some(pattern => lowerHtml.includes(pattern.toLowerCase()))
+  return patterns.some(pattern => visibleText.includes(pattern.toLowerCase()))
 }
 
 // ===== BLOCK / WAF DETECTION =====
@@ -238,18 +259,25 @@ export async function checkPage(page: PageToCheck, slowThreshold?: number): Prom
     let blockInfo = { blocked: false, reason: '', errorType: 'UNKNOWN' as ErrorType }
     let bodySnippet = ''
 
+    // Only read body when needed: non-200, or page has soft404 patterns, or has content rules
+    const needsBody = !response.ok
+      || httpStatus !== 200
+      || (page.soft404Patterns && page.soft404Patterns.length > 0)
+      || (page.contentRules && page.contentRules.length > 0)
+
     if (response.ok && httpStatus === 200) {
-      try {
-        const text = await response.text()
-        bodySnippet = text.slice(0, MAX_BODY_SIZE)
-        isSoft404 = detectSoft404(bodySnippet, page.url, page.soft404Patterns || undefined)
-        // Also check for WAF challenges on 200 responses (some WAFs return 200 with challenge)
-        blockInfo = detectBlock(httpStatus, bodySnippet, response.url, page.url)
-      } catch {
-        // If we can't read the body, assume it's fine
+      if (needsBody) {
+        try {
+          const text = await response.text()
+          bodySnippet = text.slice(0, MAX_BODY_SIZE)
+          isSoft404 = detectSoft404(bodySnippet, page.url, page.soft404Patterns || undefined)
+          blockInfo = detectBlock(httpStatus, bodySnippet, response.url, page.url)
+        } catch {
+          // If we can't read the body, assume it's fine
+        }
       }
     } else {
-      // Non-200: check for block
+      // Non-200: always read body for block/soft-404 detection
       try {
         const text = await response.text()
         bodySnippet = text.slice(0, MAX_BODY_SIZE)
@@ -263,6 +291,7 @@ export async function checkPage(page: PageToCheck, slowThreshold?: number): Prom
     let isContentMismatch = false
 
     if (response.ok && !isSoft404 && !blockInfo.blocked && page.contentRules && page.contentRules.length > 0) {
+      // Body already read above since needsBody was true when contentRules exist
       const bodyLower = bodySnippet.toLowerCase()
       contentCheckPassed = true
       for (const rule of page.contentRules) {

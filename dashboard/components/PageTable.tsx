@@ -71,7 +71,7 @@ interface PageTableProps {
   slowThreshold?: number
 }
 
-const DEFAULT_SLOW_THRESHOLD = 1500
+const DEFAULT_SLOW_THRESHOLD = 3000
 
 const ERROR_TYPE_LABELS: Record<ErrorType, { label: string; tooltip: string }> = {
   HTTP_404: { label: '404', tooltip: 'Pagina nao encontrada (HTTP 404)' },

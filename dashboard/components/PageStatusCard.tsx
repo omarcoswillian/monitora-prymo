@@ -129,7 +129,7 @@ export default function PageStatusCard({ status, enabled }: PageStatusCardProps)
 
         <div className="status-card-item">
           <span className="status-card-label">Response Time</span>
-          <span className={`status-card-value ${status.responseTime > 1500 ? 'status-value-warning' : ''}`}>
+          <span className={`status-card-value ${status.responseTime > 3000 ? 'status-value-warning' : ''}`}>
             {status.responseTime}ms
           </span>
         </div>

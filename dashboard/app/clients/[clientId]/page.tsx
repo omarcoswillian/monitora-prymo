@@ -439,7 +439,7 @@ export default function ClientDetailPage() {
                                 <td>{getStatusBadge(st)}</td>
                                 <td>
                                   {st ? (
-                                    <span className={st.responseTime > 1500 ? "slow" : ""}>
+                                    <span className={st.responseTime > 3000 ? "slow" : ""}>
                                       {st.responseTime}ms
                                     </span>
                                   ) : "-"}
