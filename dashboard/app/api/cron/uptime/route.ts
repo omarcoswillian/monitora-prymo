@@ -7,7 +7,7 @@ import {
   loadOpenIncidents,
   updatePageStatus,
 } from '@/lib/page-checker'
-import type { PageToCheck } from '@/lib/page-checker'
+import type { PageToCheck, CheckResult } from '@/lib/page-checker'
 import { getSettings } from '@/lib/supabase-settings-store'
 import { logEvent, cleanupOldEvents } from '@/lib/event-logger'
 
@@ -169,45 +169,44 @@ export async function GET(request: Request) {
 
     console.log(`[Cron Uptime] Checking ${pages.length} page(s), ${openIncidents.size} open incident(s)`)
 
-    // 4. Check all pages concurrently with retry (1 retry, 5s delay)
-    const results = await Promise.allSettled(
-      pages.map(async page => {
-        // Log check start event (fire-and-forget)
-        try {
-          await logEvent(page.id, 'uptime_check_started', `Verificacao iniciada para ${page.url}`, {
-            timeout: page.timeout,
-            slowThreshold,
-          }, 'monitor')
-        } catch { /* fire-and-forget */ }
+    // 4. Check pages in batches to reduce contention and get accurate response times
+    const BATCH_SIZE = 10
+    const results: PromiseSettledResult<CheckResult>[] = []
 
-        const result = await checkPageWithRetry(page, slowThreshold, 1, 5000)
+    for (let i = 0; i < pages.length; i += BATCH_SIZE) {
+      const batch = pages.slice(i, i + BATCH_SIZE)
+      const batchResults = await Promise.allSettled(
+        batch.map(async page => {
+          const result = await checkPageWithRetry(page, slowThreshold, 1, 5000)
 
-        // Log result event (fire-and-forget)
-        try {
-          if (result.pageStatus === 'TIMEOUT') {
-            await logEvent(page.id, 'timeout', `Timeout apos ${result.responseTime}ms`, {
-              timeout: page.timeout,
-              responseTime: result.responseTime,
-              retryCount: result.retryCount,
-            }, 'monitor')
-          } else if (result.blocked) {
-            await logEvent(page.id, 'block_detected', result.blockReason || 'Bloqueio detectado', {
-              httpStatus: result.status,
-              blockReason: result.blockReason,
-            }, 'monitor')
-          } else {
-            await logEvent(page.id, 'http_status_received', `HTTP ${result.status} em ${result.responseTime}ms`, {
-              httpStatus: result.status,
-              responseTime: result.responseTime,
-              pageStatus: result.pageStatus,
-              retryCount: result.retryCount,
-            }, 'monitor')
-          }
-        } catch { /* fire-and-forget */ }
+          // Log result event (fire-and-forget)
+          try {
+            if (result.pageStatus === 'TIMEOUT') {
+              await logEvent(page.id, 'timeout', `Timeout apos ${result.responseTime}ms`, {
+                timeout: page.timeout,
+                responseTime: result.responseTime,
+                retryCount: result.retryCount,
+              }, 'monitor')
+            } else if (result.blocked) {
+              await logEvent(page.id, 'block_detected', result.blockReason || 'Bloqueio detectado', {
+                httpStatus: result.status,
+                blockReason: result.blockReason,
+              }, 'monitor')
+            } else {
+              await logEvent(page.id, 'http_status_received', `HTTP ${result.status} em ${result.responseTime}ms`, {
+                httpStatus: result.status,
+                responseTime: result.responseTime,
+                pageStatus: result.pageStatus,
+                retryCount: result.retryCount,
+              }, 'monitor')
+            }
+          } catch { /* fire-and-forget */ }
 
-        return result
-      })
-    )
+          return result
+        })
+      )
+      results.push(...batchResults)
+    }
 
     // 5. Process results: write history + update page status + track incidents
     let successCount = 0

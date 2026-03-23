@@ -253,6 +253,7 @@ export async function checkPage(page: PageToCheck, slowThreshold?: number): Prom
 
     clearTimeout(timeoutId)
 
+    // Measure TTFB (time to first byte) — before reading body
     const responseTime = Date.now() - startTime
     const httpStatus = response.status
     let isSoft404 = false
