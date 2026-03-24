@@ -28,9 +28,10 @@ import { AppShell } from '@/components/layout'
 // ===== TIPOS =====
 
 interface LegacyReport {
+  id: string
   week: string
   client: string
-  path: string
+  path?: string
 }
 
 interface AIReport {
@@ -318,14 +319,12 @@ export default function ReportsPage() {
     fetchData()
   }, [fetchData])
 
-  const viewLegacyReport = async (week: string, client: string) => {
+  const viewLegacyReport = async (id: string, week: string, client: string) => {
     setSelectedLegacyReport({ week, client })
     setReportContent(null)
 
     try {
-      const res = await fetch(
-        `/api/reports?week=${encodeURIComponent(week)}&client=${encodeURIComponent(client)}`
-      )
+      const res = await fetch(`/api/reports?id=${encodeURIComponent(id)}`)
       const json = await res.json()
       setReportContent(json.content || 'Erro ao carregar relatorio')
     } catch {
@@ -626,7 +625,7 @@ export default function ReportsPage() {
                         <div
                           key={`${report.week}-${report.client}`}
                           className="report-card"
-                          onClick={() => viewLegacyReport(report.week, report.client)}
+                          onClick={() => viewLegacyReport(report.id, report.week, report.client)}
                         >
                           <FileText size={24} />
                           <div className="report-card-info">
