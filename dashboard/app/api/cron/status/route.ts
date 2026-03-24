@@ -6,7 +6,17 @@ export const dynamic = 'force-dynamic'
 const CRON_INTERVAL_MINUTES = 5
 const HEALTHY_THRESHOLD_MINUTES = CRON_INTERVAL_MINUTES * 2.5 // ~12.5 min
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Validate CRON_SECRET
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) {
+    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
+  }
+  const authHeader = request.headers.get('authorization')
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
       { error: 'Supabase not configured' },
