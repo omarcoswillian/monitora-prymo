@@ -298,14 +298,40 @@ export default function ReportsPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [legacyJson, aiJson, clientsJson] = await Promise.all([
-        fetch('/api/reports').then(r => r.json()).catch(() => ({ reports: [] })),
-        fetch('/api/reports/ai').then(r => r.json()).catch(() => ({ reports: [] })),
-        fetch('/api/reports/generate-ai').then(r => r.json()).catch(() => ({ clients: [], aiAvailable: false })),
+      const [aiJson, clientsJson] = await Promise.all([
+        fetch('/api/reports/ai').then(r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`)
+          return r.json()
+        }).catch((err) => {
+          console.error('Failed to fetch AI reports:', err)
+          return { reports: [] }
+        }),
+        fetch('/api/reports/generate-ai').then(r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`)
+          return r.json()
+        }).catch((err) => {
+          console.error('Failed to fetch clients:', err)
+          return { clients: [], aiAvailable: false }
+        }),
       ])
 
-      setLegacyReports(legacyJson.reports || [])
       setAIReports(aiJson.reports || [])
+
+      // Also populate legacy view from AI reports (same data, grouped by week)
+      const legacy = (aiJson.reports || [])
+        .filter((r: AIReport) => r.status === 'completed')
+        .map((r: AIReport) => {
+          const date = new Date(r.createdAt)
+          const year = date.getFullYear()
+          const weekNum = Math.ceil(((date.getTime() - new Date(year, 0, 1).getTime()) / 86400000 + new Date(year, 0, 1).getDay() + 1) / 7)
+          return {
+            id: r.id,
+            week: `${year}-W${weekNum.toString().padStart(2, '0')}`,
+            client: r.clientName || 'Global',
+          }
+        })
+      setLegacyReports(legacy)
+
       setClients(clientsJson.clients || [])
       setAIAvailable(clientsJson.aiAvailable || false)
     } catch {

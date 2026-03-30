@@ -39,6 +39,11 @@ export interface ReportSettings {
   tone: 'executive' | 'technical' | 'marketing'
 }
 
+export interface CloudflareSettings {
+  enabled: boolean
+  frequency: 'disabled' | '30min' | '1h'
+}
+
 export interface AccountSettings {
   organizationName: string
   timezone: string
@@ -50,6 +55,7 @@ export interface Settings {
   monitoring: MonitoringSettings
   audit: AuditSettings
   reports: ReportSettings
+  cloudflare: CloudflareSettings
   account: AccountSettings
   updatedAt: string
 }
@@ -90,6 +96,10 @@ export const defaultSettings: Settings = {
       weekComparison: true,
     },
     tone: 'executive',
+  },
+  cloudflare: {
+    enabled: false,
+    frequency: '30min',
   },
   account: {
     organizationName: 'Prymo',
@@ -156,10 +166,11 @@ export async function getSettings(): Promise<Settings> {
   }
 
   try {
-    const [monitoring, audit, reports, account] = await Promise.all([
+    const [monitoring, audit, reports, cloudflare, account] = await Promise.all([
       getSettingValue<MonitoringSettings>('monitoring'),
       getSettingValue<AuditSettings>('audit'),
       getSettingValue<ReportSettings>('reports'),
+      getSettingValue<CloudflareSettings>('cloudflare'),
       getSettingValue<AccountSettings>('account'),
     ])
 
@@ -182,6 +193,9 @@ export async function getSettings(): Promise<Settings> {
             content: { ...defaultSettings.reports.content, ...reports.content },
           }
         : defaultSettings.reports,
+      cloudflare: cloudflare
+        ? { ...defaultSettings.cloudflare, ...cloudflare }
+        : defaultSettings.cloudflare,
       account: account
         ? { ...defaultSettings.account, ...account }
         : defaultSettings.account,
@@ -218,6 +232,9 @@ export async function updateSettings(partial: Partial<Settings>): Promise<Settin
             : current.reports.content,
         }
       : current.reports,
+    cloudflare: partial.cloudflare
+      ? { ...current.cloudflare, ...partial.cloudflare }
+      : current.cloudflare,
     account: partial.account
       ? { ...current.account, ...partial.account }
       : current.account,
@@ -229,6 +246,7 @@ export async function updateSettings(partial: Partial<Settings>): Promise<Settin
     partial.monitoring && setSettingValue('monitoring', updated.monitoring),
     partial.audit && setSettingValue('audit', updated.audit),
     partial.reports && setSettingValue('reports', updated.reports),
+    partial.cloudflare && setSettingValue('cloudflare', updated.cloudflare),
     partial.account && setSettingValue('account', updated.account),
   ])
 
@@ -242,6 +260,7 @@ export async function resetSettings(): Promise<Settings> {
     setSettingValue('monitoring', reset.monitoring),
     setSettingValue('audit', reset.audit),
     setSettingValue('reports', reset.reports),
+    setSettingValue('cloudflare', reset.cloudflare),
     setSettingValue('account', reset.account),
   ])
 

@@ -336,6 +336,53 @@ END $$;
 -- CREATE POLICY "Allow all" ON settings FOR ALL USING (true);
 -- CREATE POLICY "Allow all" ON ai_reports FOR ALL USING (true);
 
+-- ============================================
+-- Tabela: cloudflare_zones
+-- ============================================
+CREATE TABLE IF NOT EXISTS cloudflare_zones (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  zone_id TEXT NOT NULL UNIQUE,
+  zone_name TEXT NOT NULL,
+  enabled BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_cloudflare_zones_client ON cloudflare_zones(client_id);
+
+DROP TRIGGER IF EXISTS update_cloudflare_zones_updated_at ON cloudflare_zones;
+CREATE TRIGGER update_cloudflare_zones_updated_at
+  BEFORE UPDATE ON cloudflare_zones
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================
+-- Tabela: cloudflare_analytics
+-- ============================================
+CREATE TABLE IF NOT EXISTS cloudflare_analytics (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  zone_id UUID NOT NULL REFERENCES cloudflare_zones(id) ON DELETE CASCADE,
+  client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  requests_total INTEGER NOT NULL DEFAULT 0,
+  requests_cached INTEGER NOT NULL DEFAULT 0,
+  requests_uncached INTEGER NOT NULL DEFAULT 0,
+  status_2xx INTEGER NOT NULL DEFAULT 0,
+  status_3xx INTEGER NOT NULL DEFAULT 0,
+  status_4xx INTEGER NOT NULL DEFAULT 0,
+  status_5xx INTEGER NOT NULL DEFAULT 0,
+  bandwidth_total BIGINT NOT NULL DEFAULT 0,
+  bandwidth_cached BIGINT NOT NULL DEFAULT 0,
+  threats_total INTEGER NOT NULL DEFAULT 0,
+  page_views INTEGER NOT NULL DEFAULT 0,
+  unique_visitors INTEGER NOT NULL DEFAULT 0,
+  period_start TIMESTAMPTZ NOT NULL,
+  period_end TIMESTAMPTZ NOT NULL,
+  fetched_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_cf_analytics_zone_date ON cloudflare_analytics(zone_id, fetched_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cf_analytics_client_date ON cloudflare_analytics(client_id, fetched_at DESC);
+
 -- Add page_type column to pages (for existing databases)
 DO $$
 BEGIN

@@ -16,10 +16,12 @@ import {
   ChevronDown,
   ChevronRight,
   ExternalLink,
+  Search,
 } from "lucide-react";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { ResponseTimeChart, UptimeChart } from "@/components/Charts";
 import AuditMetrics from "@/components/AuditMetrics";
+import CloudflareMetrics from "@/components/CloudflareMetrics";
 import { AppShell } from "@/components/layout";
 
 const PAGE_TYPE_LABELS: Record<string, string> = {
@@ -154,6 +156,7 @@ export default function ClientDetailPage() {
   });
   const [loading, setLoading] = useState(true);
   const [expandedSpecialists, setExpandedSpecialists] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -224,11 +227,23 @@ export default function ClientDetailPage() {
     return map;
   }, [status]);
 
+  // Filter pages by search query
+  const filteredPages = useMemo(() => {
+    if (!searchQuery.trim()) return clientPages;
+    const q = searchQuery.toLowerCase();
+    return clientPages.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.url.toLowerCase().includes(q) ||
+      (p.specialist && p.specialist.toLowerCase().includes(q)) ||
+      (p.product && p.product.toLowerCase().includes(q))
+    );
+  }, [clientPages, searchQuery]);
+
   // Build hierarchy: Specialist → Product → Pages
   const hierarchy = useMemo(() => {
     const specMap = new Map<string, Map<string, PageEntry[]>>();
 
-    for (const page of clientPages) {
+    for (const page of filteredPages) {
       const specName = page.specialist || "Sem especialista";
       const prodName = page.product || "Geral";
 
@@ -247,7 +262,7 @@ export default function ClientDetailPage() {
       })),
       totalPages: Array.from(prodMap.values()).reduce((s, p) => s + p.length, 0),
     }));
-  }, [clientPages]);
+  }, [filteredPages]);
 
   // Stats
   const stats = useMemo(() => {
@@ -361,10 +376,33 @@ export default function ClientDetailPage() {
           <UptimeChart data={history.uptimeDaily} />
         </div>
 
+        {/* Cloudflare Server Health */}
+        {clientPages[0]?.clientId && (
+          <CloudflareMetrics clientId={clientPages[0].clientId} />
+        )}
+
         {/* Hierarchy: Specialist → Product → Pages */}
-        <h2 className="section-title" style={{ marginTop: "2rem" }}>
-          <Users size={20} /> Especialistas e Paginas
-        </h2>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "2rem", marginBottom: "0.75rem", gap: "1rem" }}>
+          <h2 className="section-title" style={{ margin: 0 }}>
+            <Users size={20} /> Especialistas e Paginas
+          </h2>
+          <div style={{ position: "relative", maxWidth: "300px", flex: 1 }}>
+            <Search size={16} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)" }} />
+            <input
+              type="text"
+              placeholder="Buscar pagina, URL, especialista..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="input"
+              style={{ paddingLeft: "34px", height: "36px", fontSize: "0.85rem", width: "100%" }}
+            />
+          </div>
+        </div>
+        {searchQuery && (
+          <p className="form-hint" style={{ marginBottom: "0.5rem" }}>
+            {filteredPages.length} resultado(s) para &quot;{searchQuery}&quot;
+          </p>
+        )}
 
         {hierarchy.map(spec => (
           <div key={spec.name} className="settings-section" style={{ marginBottom: "1rem" }}>

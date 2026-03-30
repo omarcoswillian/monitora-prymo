@@ -47,6 +47,9 @@ export type EventType =
   | 'status_changed'
   | 'incident_created'
   | 'incident_resolved'
+  | 'cloudflare_fetch_started'
+  | 'cloudflare_fetch_completed'
+  | 'cloudflare_fetch_failed'
 
 // ===== STATUS DISPLAY CONFIG =====
 
@@ -198,6 +201,9 @@ export const EVENT_DISPLAY: Record<EventType, EventDisplayConfig> = {
   status_changed:            { label: 'Status alterado',            icon: 'ArrowRight',   color: '--color-warning' },
   incident_created:          { label: 'Incidente criado',           icon: 'AlertTriangle', color: '--color-error' },
   incident_resolved:         { label: 'Incidente resolvido',        icon: 'CheckCircle2', color: '--color-success' },
+  cloudflare_fetch_started:  { label: 'Cloudflare fetch iniciado',  icon: 'Cloud',        color: '--text-tertiary' },
+  cloudflare_fetch_completed:{ label: 'Cloudflare fetch concluido', icon: 'CheckCircle2', color: '--color-success' },
+  cloudflare_fetch_failed:   { label: 'Cloudflare fetch falhou',    icon: 'XCircle',      color: '--color-error' },
 }
 
 // ===== BACKWARD COMPATIBILITY =====

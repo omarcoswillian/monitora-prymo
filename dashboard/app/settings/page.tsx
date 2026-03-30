@@ -16,6 +16,7 @@ import {
   Bot,
   Building2,
   LogOut,
+  Cloud,
 } from 'lucide-react'
 import Breadcrumbs from '@/components/Breadcrumbs'
 import { AppShell } from '@/components/layout'
@@ -25,8 +26,10 @@ import type {
   MonitoringSettings,
   AuditSettings,
   ReportSettings,
+  CloudflareSettings,
   AccountSettings,
 } from '@/lib/supabase-settings-store'
+import CloudflareZoneManager from '@/components/CloudflareZoneManager'
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
@@ -140,6 +143,15 @@ export default function SettingsPage() {
         ...settings.reports,
         content: { ...settings.reports.content, [key]: value },
       },
+    })
+    setHasChanges(true)
+  }
+
+  const updateCloudflare = (key: keyof CloudflareSettings, value: CloudflareSettings[keyof CloudflareSettings]) => {
+    if (!settings) return
+    setSettings({
+      ...settings,
+      cloudflare: { ...settings.cloudflare, [key]: value },
     })
     setHasChanges(true)
   }
@@ -703,7 +715,63 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          {/* Secao 4: Conta / Seguranca */}
+          {/* Secao 4: Cloudflare */}
+          <section className="settings-section">
+            <div className="settings-section-header">
+              <div className="settings-section-icon" style={{ background: 'rgba(249, 115, 22, 0.15)', color: '#f97316' }}>
+                <Cloud size={20} />
+              </div>
+              <div>
+                <h2>Cloudflare</h2>
+                <p>Analytics do servidor e CDN</p>
+              </div>
+            </div>
+
+            <div className="settings-section-content">
+              <div className="settings-group">
+                <label className="settings-label">
+                  Coleta de dados
+                  <span className="settings-hint">Habilitar coleta automatica de metricas da Cloudflare</span>
+                </label>
+                <div className="settings-row">
+                  {(['disabled', '30min', '1h'] as const).map((freq) => (
+                    <label key={freq} className="settings-radio">
+                      <input
+                        type="radio"
+                        name="cf-frequency"
+                        checked={settings.cloudflare.frequency === freq}
+                        onChange={() => {
+                          updateCloudflare('frequency', freq)
+                          updateCloudflare('enabled', freq !== 'disabled')
+                        }}
+                      />
+                      {freq === 'disabled' ? 'Desativado' : `A cada ${freq}`}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {!process.env.NEXT_PUBLIC_CLOUDFLARE_CONFIGURED && (
+                <div className="settings-info-box">
+                  <Info size={16} />
+                  <div>
+                    <strong>API Token necessario</strong>
+                    <p>Configure a variavel de ambiente CLOUDFLARE_API_TOKEN com um token com permissao Analytics Read.</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="settings-group">
+                <label className="settings-label">
+                  Zones configuradas
+                  <span className="settings-hint">Vincule Zone IDs da Cloudflare aos clientes</span>
+                </label>
+                <CloudflareZoneManager />
+              </div>
+            </div>
+          </section>
+
+          {/* Secao 5: Conta / Seguranca */}
           <section className="settings-section">
             <div className="settings-section-header">
               <div className="settings-section-icon settings-section-icon-account">

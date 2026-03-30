@@ -666,18 +666,44 @@ export default function Dashboard() {
 
     return Array.from(clientMap.entries()).map(([clientName, specMap]) => ({
       clientName,
-      specialists: Array.from(specMap.entries()).map(([specName, prodMap]) => ({
-        name: specName,
-        products: Array.from(prodMap.entries()).map(([prodName, pages]) => ({
-          name: prodName,
-          pages,
-        })),
-      })),
+      specialists: Array.from(specMap.entries()).map(([specName, prodMap]) => {
+        const allPages = Array.from(prodMap.values()).flat();
+        const specId = allPages[0]?.specialistId || null;
+        const allPaused = allPages.every((p) => !p.enabled);
+        return {
+          name: specName,
+          specialistId: specId,
+          allPaused,
+          products: Array.from(prodMap.entries()).map(([prodName, pages]) => ({
+            name: prodName,
+            pages,
+          })),
+        };
+      }),
       totalPages: Array.from(specMap.values()).reduce(
         (sum, pm) => sum + Array.from(pm.values()).reduce((s, p) => s + p.length, 0), 0
       ),
     }));
   }, [filtered]);
+
+  const [bulkToggling, setBulkToggling] = useState<string | null>(null);
+
+  const bulkToggle = async (enabled: boolean, opts: { all?: boolean; specialistId?: string | null }) => {
+    const key = opts.all ? "all" : opts.specialistId || "";
+    setBulkToggling(key);
+    try {
+      await fetch("/api/pages/bulk-toggle", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled, ...opts }),
+      });
+      fetchPages();
+    } catch {
+      console.error("Failed to bulk toggle");
+    } finally {
+      setBulkToggling(null);
+    }
+  };
 
   const toggleEnabled = async (page: PageEntry) => {
     try {
@@ -1043,6 +1069,23 @@ export default function Dashboard() {
               {f.label}
             </FilterChip>
           ))}
+          {isAdmin && (
+            (() => {
+              const allActive = clientFiltered.length > 0 && clientFiltered.some((p) => p.enabled);
+              return (
+                <div
+                  className={`toggle-switch ${bulkToggling === "all" ? "disabled" : ""}`}
+                  onClick={() => !bulkToggling && bulkToggle(!allActive, { all: true })}
+                  title={allActive ? "Pausar todas as paginas" : "Ativar todas as paginas"}
+                >
+                  <span className="toggle-label">Todas</span>
+                  <div className={`toggle-track ${allActive ? "active" : ""}`}>
+                    <div className="toggle-thumb" />
+                  </div>
+                </div>
+              );
+            })()
+          )}
         </FiltersBar>
 
         {/* Hierarchical View: Client → Specialist → Product → Pages */}
@@ -1072,6 +1115,18 @@ export default function Dashboard() {
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
                       <Users size={16} />
                       <strong>{spec.name}</strong>
+                      {isAdmin && spec.specialistId && (
+                        <div
+                          className={`toggle-switch ${bulkToggling === spec.specialistId ? "disabled" : ""}`}
+                          onClick={() => !bulkToggling && bulkToggle(spec.allPaused, { specialistId: spec.specialistId })}
+                          title={spec.allPaused ? `Ativar paginas de ${spec.name}` : `Pausar paginas de ${spec.name}`}
+                          style={{ marginLeft: "0.5rem" }}
+                        >
+                          <div className={`toggle-track ${!spec.allPaused ? "active" : ""}`}>
+                            <div className="toggle-thumb" />
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {spec.products.map((prod) => (
@@ -1160,9 +1215,15 @@ export default function Dashboard() {
                                         <button onClick={() => openEditModal(entry.id)} className="btn btn-small btn-icon" title="Editar">
                                           <Pencil size={14} />
                                         </button>
-                                        <button onClick={() => toggleEnabled(entry)} className="btn btn-small btn-icon" title={entry.enabled ? "Pausar" : "Ativar"}>
-                                          {entry.enabled ? <Pause size={14} /> : <Play size={14} />}
-                                        </button>
+                                        <div
+                                          className="toggle-switch"
+                                          onClick={() => toggleEnabled(entry)}
+                                          title={entry.enabled ? "Pausar" : "Ativar"}
+                                        >
+                                          <div className={`toggle-track ${entry.enabled ? "active" : ""}`}>
+                                            <div className="toggle-thumb" />
+                                          </div>
+                                        </div>
                                         <button onClick={() => handleDelete(entry)} disabled={deleting === entry.id} className="btn btn-small btn-icon btn-danger" title="Excluir">
                                           {deleting === entry.id ? "..." : <Trash2 size={14} />}
                                         </button>
