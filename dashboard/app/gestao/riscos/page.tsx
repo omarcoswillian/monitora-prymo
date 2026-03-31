@@ -42,7 +42,7 @@ export default function RiscosPage() {
     const high = ranking.filter(p => p.healthScore <= 40).length
     return [
       { name: 'Baixo', value: low, color: 'var(--color-success)' },
-      { name: 'Medio', value: mid, color: 'var(--color-warning)' },
+      { name: 'Médio', value: mid, color: 'var(--color-warning)' },
       { name: 'Alto', value: high, color: 'var(--color-error)' },
     ].filter(d => d.value > 0)
   }, [ranking])
@@ -69,7 +69,7 @@ export default function RiscosPage() {
           <div>
             <h1 className="gestao-title">Riscos &amp; Incidentes</h1>
             <p className="gestao-subtitle">
-              Identifique padroes de falha e paginas que exigem atencao prioritaria.
+              Identifique padrões de falha e páginas que exigem atenção prioritária.
             </p>
           </div>
         </div>
@@ -83,7 +83,7 @@ export default function RiscosPage() {
             </select>
           </div>
           <div className="gestao-filter-group">
-            <label className="gestao-filter-label">Periodo</label>
+            <label className="gestao-filter-label">Período</label>
             <div className="gestao-period-buttons">
               {PERIOD_OPTIONS.map(opt => (
                 <button key={opt.value} className={`gestao-period-btn ${period === opt.value ? 'gestao-period-btn-active' : ''}`} onClick={() => setPeriod(opt.value)}>
@@ -102,12 +102,12 @@ export default function RiscosPage() {
               <div className="gestao-kpi-card">
                 <span className="gestao-kpi-label">Total de Incidentes</span>
                 <span className="gestao-kpi-value">{kpis.totalInc}</span>
-                <span className="gestao-kpi-sub">ultimos {period}d</span>
+                <span className="gestao-kpi-sub">últimos {period}d</span>
               </div>
               <div className="gestao-kpi-card">
-                <span className="gestao-kpi-label">Paginas em Risco</span>
+                <span className="gestao-kpi-label">Páginas em Risco</span>
                 <span className="gestao-kpi-value">{kpis.pagesAtRisk}</span>
-                <span className="gestao-kpi-sub">3+ incidentes no periodo</span>
+                <span className="gestao-kpi-sub">3+ incidentes no período</span>
               </div>
               <div className="gestao-kpi-card">
                 <span className="gestao-kpi-label">Risco Alto</span>
@@ -124,7 +124,7 @@ export default function RiscosPage() {
             <div className="gestao-charts-grid">
               <div className="gestao-card">
                 <div className="gestao-card-header">
-                  <h3 className="gestao-card-title">Distribuicao de Risco</h3>
+                  <h3 className="gestao-card-title">Distribuição de Risco</h3>
                 </div>
                 <div className="gestao-chart-body">
                   {riskDist.length > 0 ? (
@@ -159,7 +159,7 @@ export default function RiscosPage() {
                       </AreaChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="gestao-empty">Sem incidentes no periodo.</div>
+                    <div className="gestao-empty">Sem incidentes no período.</div>
                   )}
                 </div>
               </div>
@@ -188,7 +188,7 @@ export default function RiscosPage() {
             {/* Most incident pages */}
             <div className="gestao-card gestao-card-full">
               <div className="gestao-card-header">
-                <h3 className="gestao-card-title">Paginas com Mais Incidentes</h3>
+                <h3 className="gestao-card-title">Páginas com Mais Incidentes</h3>
                 <Link href="/incidents" className="gestao-card-link">Ver todos os incidentes</Link>
               </div>
               <div className="gestao-mini-table">
@@ -197,7 +197,7 @@ export default function RiscosPage() {
                     <thead>
                       <tr>
                         <th>#</th>
-                        <th>Pagina</th>
+                        <th>Página</th>
                         <th>Cliente</th>
                         <th>Incidentes</th>
                         <th>Score</th>
@@ -225,7 +225,7 @@ export default function RiscosPage() {
                     </tbody>
                   </table>
                 ) : (
-                  <div className="gestao-empty">Nenhum incidente registrado no periodo.</div>
+                  <div className="gestao-empty">Nenhum incidente registrado no período.</div>
                 )}
               </div>
             </div>

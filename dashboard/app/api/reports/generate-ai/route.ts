@@ -33,10 +33,10 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as GenerateRequest
 
-    // Validar parametros
+    // Validar parâmetros
     if (!body.scope || !['client', 'global'].includes(body.scope)) {
       return NextResponse.json(
-        { error: 'Parametro "scope" invalido. Use "client" ou "global".' },
+        { error: 'Parâmetro "scope" inválido. Use "client" ou "global".' },
         { status: 400 }
       )
     }
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
     if (body.scope === 'client' && !body.clientName) {
       return NextResponse.json(
-        { error: 'Parametro "clientName" obrigatorio quando scope e "client".' },
+        { error: 'Parâmetro "clientName" obrigatório quando scope é "client".' },
         { status: 400 }
       )
     }
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       const clients = await getAvailableClients()
       if (!clients.includes(body.clientName!)) {
         return NextResponse.json(
-          { error: `Cliente "${body.clientName}" nao encontrado.` },
+          { error: `Cliente "${body.clientName}" não encontrado.` },
           { status: 404 }
         )
       }
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Buscar configuracoes
+    // Buscar configurações
     const settings = await getSettings()
     const tone = settings.reports.tone
 
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
         ? await aggregateGlobalData(7)
         : await aggregateClientData(body.clientName!, 7)
 
-    // Criar registro do relatorio (status: generating)
+    // Criar registro do relatório (status: generating)
     const report = await createAIReport({
       type: body.scope,
       clientName: body.scope === 'client' ? body.clientName! : null,
@@ -97,18 +97,18 @@ export async function POST(request: Request) {
     })
 
     try {
-      // Gerar relatorio
+      // Gerar relatório
       let content: string
 
       if (body.useFallback || !process.env.ANTHROPIC_API_KEY) {
-        // Usar fallback se nao tiver API key ou se solicitado
+        // Usar fallback se não tiver API key ou se solicitado
         content = generateFallbackReport(data)
       } else {
         // Gerar com IA
         content = await generateAIReport(data, { tone })
       }
 
-      // Atualizar relatorio com conteudo
+      // Atualizar relatório com conteúdo
       const updated = await updateAIReport(report.id, {
         content,
         status: 'completed',
@@ -129,26 +129,26 @@ export async function POST(request: Request) {
         content,
         status: 'completed',
         completedAt: new Date().toISOString(),
-        error: 'Gerado com template (IA indisponivel)',
+        error: 'Gerado com template (IA indisponível)',
       })
 
       return NextResponse.json({
         success: true,
         report: updated,
-        warning: 'Relatorio gerado com template. IA indisponivel.',
+        warning: 'Relatório gerado com template. IA indisponível.',
       })
     }
   } catch (error) {
     console.error('Error generating AI report:', error)
     const message = error instanceof Error ? error.message : 'Erro desconhecido'
     return NextResponse.json(
-      { error: `Falha ao gerar relatorio: ${message}` },
+      { error: `Falha ao gerar relatório: ${message}` },
       { status: 500 }
     )
   }
 }
 
-// Endpoint para listar clientes disponiveis
+// Endpoint para listar clientes disponíveis
 export async function GET() {
   try {
     const ctx = await getUserContext()

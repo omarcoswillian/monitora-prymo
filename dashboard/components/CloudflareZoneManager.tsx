@@ -107,9 +107,9 @@ export default function CloudflareZoneManager() {
             <thead>
               <tr>
                 <th>Cliente</th>
-                <th>Dominio</th>
+                <th>Domínio</th>
                 <th>Zone ID</th>
-                <th>Acoes</th>
+                <th>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -140,7 +140,7 @@ export default function CloudflareZoneManager() {
         </div>
       ) : (
         <p className="form-hint" style={{ marginBottom: '1rem' }}>
-          Nenhuma zone configurada. Adicione uma zone para comecar a coletar dados.
+          Nenhuma zone configurada. Adicione uma zone para começar a coletar dados.
         </p>
       )}
 
@@ -172,7 +172,7 @@ export default function CloudflareZoneManager() {
         </div>
 
         <div className="settings-label" style={{ flex: '1', minWidth: '150px' }}>
-          <span>Dominio</span>
+          <span>Domínio</span>
           <input
             type="text"
             value={formZoneName}

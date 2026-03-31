@@ -210,8 +210,8 @@ export default function ClienteDetailPage() {
       }])
       setNewPageName('')
       setNewPageUrl('')
-      setSuccess(`Pagina "${newPageName.trim()}" adicionada!`)
-    } catch { setError('Erro ao criar pagina') }
+      setSuccess(`Página "${newPageName.trim()}" adicionada!`)
+    } catch { setError('Erro ao criar página') }
     finally { setSaving(false) }
   }
 
@@ -237,8 +237,8 @@ export default function ClienteDetailPage() {
       setNewUserEmail('')
       setNewUserPassword('')
       setNewUserName('')
-      setSuccess(`Usuario "${data.email}" criado!`)
-    } catch { setError('Erro ao criar usuario') }
+      setSuccess(`Usuário "${data.email}" criado!`)
+    } catch { setError('Erro ao criar usuário') }
     finally { setSaving(false) }
   }
 
@@ -261,10 +261,10 @@ export default function ClienteDetailPage() {
         <div className="container">
           <Breadcrumbs items={[
             { label: 'Clientes', href: '/clientes' },
-            { label: 'Nao encontrado' },
+            { label: 'Não encontrado' },
           ]} />
           <div className="empty-state">
-            <h3>Cliente nao encontrado</h3>
+            <h3>Cliente não encontrado</h3>
             <Link href="/clientes" className="btn btn-primary">Voltar</Link>
           </div>
         </div>
@@ -299,7 +299,7 @@ export default function ClienteDetailPage() {
             <div>
               <h1>{client.name}</h1>
               <p className="header-description">
-                {specialists.length} especialistas · {products.length} produtos · {pages.length} paginas · {users.length} usuarios
+                {specialists.length} especialistas · {products.length} produtos · {pages.length} páginas · {users.length} usuários
               </p>
             </div>
             <div className="header-actions">
@@ -399,7 +399,7 @@ export default function ClienteDetailPage() {
 
         {/* Pages Section */}
         <div className="settings-section">
-          <SectionHeader section="pages" icon={Globe} title="Paginas" count={pages.length} />
+          <SectionHeader section="pages" icon={Globe} title="Páginas" count={pages.length} />
           {expandedSections.has('pages') && (
             <div className="settings-section-content">
               {pages.length > 0 && (
@@ -436,7 +436,7 @@ export default function ClienteDetailPage() {
                       value={newPageName}
                       onChange={e => { setNewPageName(e.target.value); clearMessages() }}
                       className="input"
-                      placeholder="Nome da pagina"
+                      placeholder="Nome da página"
                     />
                   </div>
                   <div className="form-row">
@@ -461,7 +461,7 @@ export default function ClienteDetailPage() {
 
         {/* Users Section */}
         <div className="settings-section">
-          <SectionHeader section="users" icon={UserPlus} title="Usuarios" count={users.length} />
+          <SectionHeader section="users" icon={UserPlus} title="Usuários" count={users.length} />
           {expandedSections.has('users') && (
             <div className="settings-section-content">
               {users.length > 0 && (
@@ -480,7 +480,7 @@ export default function ClienteDetailPage() {
                   value={newUserName}
                   onChange={e => { setNewUserName(e.target.value); clearMessages() }}
                   className="input"
-                  placeholder="Nome do usuario"
+                  placeholder="Nome do usuário"
                 />
               </div>
               <div className="form-group">
@@ -503,7 +503,7 @@ export default function ClienteDetailPage() {
                   />
                 </div>
                 <button className="btn btn-primary" onClick={handleAddUser} disabled={saving} style={{ alignSelf: 'flex-end' }}>
-                  <Plus size={16} /> Criar Usuario
+                  <Plus size={16} /> Criar Usuário
                 </button>
               </div>
             </div>

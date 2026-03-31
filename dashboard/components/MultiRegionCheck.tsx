@@ -47,8 +47,8 @@ export default function MultiRegionCheck({ pageId }: { pageId: string }) {
       <div className="settings-section-header">
         <Globe size={20} />
         <div style={{ flex: 1 }}>
-          <h3>Verificacao Multi-Regiao</h3>
-          <p>Teste a pagina de diferentes localizacoes</p>
+          <h3>Verificação Multi-Região</h3>
+          <p>Teste a página de diferentes localizações</p>
         </div>
         <button
           className="btn btn-primary"
@@ -56,7 +56,7 @@ export default function MultiRegionCheck({ pageId }: { pageId: string }) {
           disabled={loading}
           style={{ marginLeft: 'auto' }}
         >
-          {loading ? <><Loader2 size={14} className="spinning" /> Verificando...</> : <><MapPin size={14} /> Verificar Regioes</>}
+          {loading ? <><Loader2 size={14} className="spinning" /> Verificando...</> : <><MapPin size={14} /> Verificar Regiões</>}
         </button>
       </div>
 
@@ -71,11 +71,11 @@ export default function MultiRegionCheck({ pageId }: { pageId: string }) {
               </div>
             </div>
             <div className="card">
-              <div className="card-label">Tempo Medio</div>
+              <div className="card-label">Tempo Médio</div>
               <div className="card-value">{data.summary.avgResponseTime}ms</div>
             </div>
             <div className="card">
-              <div className="card-label">Mais Rapido</div>
+              <div className="card-label">Mais Rápido</div>
               <div className="card-value online" style={{ fontSize: '0.875rem' }}>{data.summary.fastestRegion}</div>
             </div>
             <div className="card">
@@ -89,7 +89,7 @@ export default function MultiRegionCheck({ pageId }: { pageId: string }) {
             <table>
               <thead>
                 <tr>
-                  <th>Regiao</th>
+                  <th>Região</th>
                   <th>Status</th>
                   <th>Tempo</th>
                   <th>HTTP</th>

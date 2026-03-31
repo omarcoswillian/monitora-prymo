@@ -19,18 +19,18 @@ export async function GET(request: NextRequest) {
     }
 
     if (id) {
-      // Buscar relatorio especifico
+      // Buscar relatório específico
       const report = await getAIReportById(id)
       if (!report) {
         return NextResponse.json(
-          { error: 'Relatorio nao encontrado' },
+          { error: 'Relatório não encontrado' },
           { status: 404 }
         )
       }
       return NextResponse.json(report)
     }
 
-    // Listar todos os relatorios
+    // Listar todos os relatórios
     let reports = await getAllAIReports()
 
     // CLIENT users: filter to their client's reports
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error getting AI reports:', error)
     return NextResponse.json(
-      { error: 'Falha ao buscar relatorios' },
+      { error: 'Falha ao buscar relatórios' },
       { status: 500 }
     )
   }
@@ -73,7 +73,7 @@ export async function DELETE(request: NextRequest) {
 
   if (!id) {
     return NextResponse.json(
-      { error: 'Parametro "id" obrigatorio' },
+      { error: 'Parâmetro "id" obrigatório' },
       { status: 400 }
     )
   }
@@ -82,7 +82,7 @@ export async function DELETE(request: NextRequest) {
     const deleted = await deleteAIReport(id)
     if (!deleted) {
       return NextResponse.json(
-        { error: 'Relatorio nao encontrado' },
+        { error: 'Relatório não encontrado' },
         { status: 404 }
       )
     }
@@ -91,7 +91,7 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error('Error deleting AI report:', error)
     return NextResponse.json(
-      { error: 'Falha ao excluir relatorio' },
+      { error: 'Falha ao excluir relatório' },
       { status: 500 }
     )
   }

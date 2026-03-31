@@ -282,11 +282,11 @@ export function getDayOfWeekLabel(day: number): string {
   const days = [
     'Domingo',
     'Segunda-feira',
-    'Terca-feira',
+    'Terça-feira',
     'Quarta-feira',
     'Quinta-feira',
     'Sexta-feira',
-    'Sabado',
+    'Sábado',
   ]
   return days[day] || 'Desconhecido'
 }

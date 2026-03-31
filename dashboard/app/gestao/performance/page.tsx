@@ -71,9 +71,9 @@ export default function PerformancePage() {
       <div className="gestao-page">
         <div className="gestao-header">
           <div>
-            <h1 className="gestao-title">Performance &amp; Saude</h1>
+            <h1 className="gestao-title">Performance &amp; Saúde</h1>
             <p className="gestao-subtitle">
-              Acompanhe a performance e saude das paginas monitoradas.
+              Acompanhe a performance e saúde das páginas monitoradas.
             </p>
           </div>
         </div>
@@ -87,7 +87,7 @@ export default function PerformancePage() {
             </select>
           </div>
           <div className="gestao-filter-group">
-            <label className="gestao-filter-label">Periodo</label>
+            <label className="gestao-filter-label">Período</label>
             <div className="gestao-period-buttons">
               {PERIOD_OPTIONS.map(opt => (
                 <button key={opt.value} className={`gestao-period-btn ${period === opt.value ? 'gestao-period-btn-active' : ''}`} onClick={() => setPeriod(opt.value)}>
@@ -104,22 +104,22 @@ export default function PerformancePage() {
           <>
             <div className="gestao-kpi-grid">
               <div className="gestao-kpi-card">
-                <span className="gestao-kpi-label">Performance Media</span>
+                <span className="gestao-kpi-label">Performance Média</span>
                 <span className="gestao-kpi-value">{kpis.avgPerf}</span>
                 <span className="gestao-kpi-sub">PageSpeed</span>
               </div>
               <div className="gestao-kpi-card">
-                <span className="gestao-kpi-label">Response Time Medio</span>
+                <span className="gestao-kpi-label">Response Time Médio</span>
                 <span className="gestao-kpi-value">{kpis.avgRt}ms</span>
-                <span className="gestao-kpi-sub">todas as paginas</span>
+                <span className="gestao-kpi-sub">todas as páginas</span>
               </div>
               <div className="gestao-kpi-card">
-                <span className="gestao-kpi-label">Paginas Saudaveis</span>
+                <span className="gestao-kpi-label">Páginas Saudáveis</span>
                 <span className="gestao-kpi-value">{kpis.healthy}</span>
                 <span className="gestao-kpi-sub">score &gt; 80</span>
               </div>
               <div className="gestao-kpi-card">
-                <span className="gestao-kpi-label">Paginas Criticas</span>
+                <span className="gestao-kpi-label">Páginas Críticas</span>
                 <span className="gestao-kpi-value">{kpis.critical}</span>
                 <span className="gestao-kpi-sub">score &lt; 50</span>
               </div>
@@ -128,7 +128,7 @@ export default function PerformancePage() {
             <div className="gestao-charts-grid">
               <div className="gestao-card">
                 <div className="gestao-card-header">
-                  <h3 className="gestao-card-title">Response Time Medio Diario</h3>
+                  <h3 className="gestao-card-title">Response Time Médio Diário</h3>
                 </div>
                 <div className="gestao-chart-body">
                   {dailyRt.length > 0 ? (
@@ -142,7 +142,7 @@ export default function PerformancePage() {
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="gestao-empty">Sem dados no periodo.</div>
+                    <div className="gestao-empty">Sem dados no período.</div>
                   )}
                 </div>
               </div>
@@ -171,14 +171,14 @@ export default function PerformancePage() {
 
             <div className="gestao-card gestao-card-full">
               <div className="gestao-card-header">
-                <h3 className="gestao-card-title">Paginas Monitoradas por Score</h3>
+                <h3 className="gestao-card-title">Páginas Monitoradas por Score</h3>
                 <Link href="/insights/ranking" className="gestao-card-link">Ver ranking completo</Link>
               </div>
               <div className="gestao-mini-table">
                 <table className="ranking-table">
                   <thead>
                     <tr>
-                      <th>Pagina</th>
+                      <th>Página</th>
                       <th>Cliente</th>
                       <th>Score</th>
                       <th>Uptime</th>

@@ -75,7 +75,7 @@ export default function NovoClientePage() {
   const portalUrl = typeof window !== 'undefined' ? window.location.origin : ''
 
   const accessMessage = userCreated
-    ? `Acesso ao Prymo Monitora\n\nLink: ${portalUrl}/login-cliente\nAcesso: ${clientName}\nSenha: ${userPassword}\n\nFaca login para acompanhar suas paginas.`
+    ? `Acesso ao Prymo Monitora\n\nLink: ${portalUrl}/login-cliente\nAcesso: ${clientName}\nSenha: ${userPassword}\n\nFaça login para acompanhar suas páginas.`
     : ''
 
   const handleCopyAccess = () => {
@@ -86,7 +86,7 @@ export default function NovoClientePage() {
 
   // --- Create Client ---
   const handleCreateClient = async () => {
-    if (!clientName.trim()) { setError('Nome do cliente e obrigatorio'); return }
+    if (!clientName.trim()) { setError('Nome do cliente é obrigatório'); return }
     clearMessages()
     setSaving(true)
     try {
@@ -108,7 +108,7 @@ export default function NovoClientePage() {
     if (!userEmail.trim() || !userPassword || !userName.trim()) {
       setError('Preencha nome, email e senha'); return
     }
-    if (userPassword.length < 6) { setError('Senha deve ter no minimo 6 caracteres'); return }
+    if (userPassword.length < 6) { setError('Senha deve ter no mínimo 6 caracteres'); return }
     clearMessages()
     setSaving(true)
     try {
@@ -124,10 +124,10 @@ export default function NovoClientePage() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error || 'Erro ao criar usuario'); return }
+      if (!res.ok) { setError(data.error || 'Erro ao criar usuário'); return }
       setUserCreated(true)
       setSuccess('Login criado!')
-    } catch { setError('Erro ao criar usuario') }
+    } catch { setError('Erro ao criar usuário') }
     finally { setSaving(false) }
   }
 
@@ -186,7 +186,7 @@ export default function NovoClientePage() {
     if (!selectedProductId || !newPageName.trim() || !newPageUrl.trim()) {
       setError('Selecione um produto e informe nome e URL'); return
     }
-    try { new URL(newPageUrl.trim()) } catch { setError('URL invalida'); return }
+    try { new URL(newPageUrl.trim()) } catch { setError('URL inválida'); return }
     clearMessages()
     setSaving(true)
     try {
@@ -204,15 +204,15 @@ export default function NovoClientePage() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error || 'Erro ao criar pagina'); return }
+      if (!res.ok) { setError(data.error || 'Erro ao criar página'); return }
       setPages(prev => [...prev, {
         id: data.id, productId: selectedProductId,
         name: data.name || newPageName.trim(), url: newPageUrl.trim(),
       }])
       setNewPageName('')
       setNewPageUrl('')
-      setSuccess(`Pagina "${newPageName.trim()}" adicionada!`)
-    } catch { setError('Erro ao criar pagina') }
+      setSuccess(`Página "${newPageName.trim()}" adicionada!`)
+    } catch { setError('Erro ao criar página') }
     finally { setSaving(false) }
   }
 
@@ -232,7 +232,7 @@ export default function NovoClientePage() {
         <header className="header">
           <h1>Cadastrar Novo Cliente</h1>
           <p className="header-description">
-            Preencha as secoes abaixo para cadastrar o cliente completo.
+            Preencha as seções abaixo para cadastrar o cliente completo.
           </p>
         </header>
 
@@ -256,7 +256,7 @@ export default function NovoClientePage() {
                   value={clientName}
                   onChange={e => { setClientName(e.target.value); clearMessages() }}
                   className="input"
-                  placeholder="Ex: Execucao Digital"
+                  placeholder="Ex: Execução Digital"
                   disabled={!!clientId}
                 />
               </div>
@@ -289,7 +289,7 @@ export default function NovoClientePage() {
                     <label>Nome</label>
                     <input type="text" value={userName}
                       onChange={e => { setUserName(e.target.value); clearMessages() }}
-                      className="input" placeholder="Nome do usuario" />
+                      className="input" placeholder="Nome do usuário" />
                   </div>
                   <div className="form-row">
                     <div className="form-group" style={{ flex: 1 }}>
@@ -302,7 +302,7 @@ export default function NovoClientePage() {
                       <label>Senha</label>
                       <input type="text" value={userPassword}
                         onChange={e => { setUserPassword(e.target.value); clearMessages() }}
-                        className="input" placeholder="Minimo 6 caracteres" />
+                        className="input" placeholder="Mínimo 6 caracteres" />
                     </div>
                   </div>
                   <div className="form-actions">
@@ -409,13 +409,13 @@ export default function NovoClientePage() {
           </div>
         )}
 
-        {/* ====== SECTION 5: Paginas ====== */}
+        {/* ====== SECTION 5: Páginas ====== */}
         {clientId && products.length > 0 && (
           <div className="settings-section">
             <div className="settings-section-header">
               <Globe size={20} />
               <div>
-                <h3>5. Paginas</h3>
+                <h3>5. Páginas</h3>
                 <p>URLs a monitorar para cada produto.</p>
               </div>
             </div>
@@ -442,7 +442,7 @@ export default function NovoClientePage() {
                 </select>
               </div>
               <div className="form-group">
-                <label>Nome da Pagina</label>
+                <label>Nome da Página</label>
                 <input type="text" value={newPageName}
                   onChange={e => { setNewPageName(e.target.value); clearMessages() }}
                   className="input" placeholder="Ex: Home Page" />

@@ -55,12 +55,12 @@ export default function ClientGreeting({
       <div className="client-greeting-main">
         <div className="client-greeting-text">
           <h1>
-            Ola, {companyName}
+            Olá, {companyName}
           </h1>
           <p className="client-greeting-date">{dateStr}</p>
           <p className="client-greeting-summary">
             <Globe size={16} />
-            {totalPages} paginas monitoradas
+            {totalPages} páginas monitoradas
             <span className="client-greeting-dot">&middot;</span>
             <CheckCircle2 size={16} />
             {onlineCount} online
@@ -71,7 +71,7 @@ export default function ClientGreeting({
         </div>
 
         {healthScore !== null && (
-          <div className={`health-score-badge ${getScoreColor(healthScore)}`} title="Saude do Site">
+          <div className={`health-score-badge ${getScoreColor(healthScore)}`} title="Saúde do Site">
             <span className="health-score-value">{healthScore}</span>
           </div>
         )}
@@ -80,7 +80,7 @@ export default function ClientGreeting({
       {problemCount > 0 && (
         <div className="client-greeting-alert">
           <AlertTriangle size={16} />
-          Atencao: {problemCount} pagina(s) com problema
+          Atenção: {problemCount} página(s) com problema
         </div>
       )}
     </div>

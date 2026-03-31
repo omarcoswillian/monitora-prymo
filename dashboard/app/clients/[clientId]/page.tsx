@@ -126,7 +126,7 @@ function SpecialistCharts({ clientId, specialistName }: { clientId: string; spec
       .finally(() => setLoading(false));
   }, [clientId, specialistName]);
 
-  if (loading) return <div className="loading" style={{ padding: "1rem" }}>Carregando graficos...</div>;
+  if (loading) return <div className="loading" style={{ padding: "1rem" }}>Carregando gráficos...</div>;
 
   const hasData = data.responseTimeAvg.some(d => d.avg !== null) || data.uptimeDaily.length > 0;
   if (!hasData) return null;
@@ -306,7 +306,7 @@ export default function ClientDetailPage() {
       <AppShell>
         <div className="container">
           <Breadcrumbs items={[{ label: clientId }]} />
-          <div className="empty">Cliente nao encontrado ou sem paginas cadastradas.</div>
+          <div className="empty">Cliente não encontrado ou sem páginas cadastradas.</div>
           <Link href="/" className="btn" style={{ marginTop: "1rem", display: "inline-block" }}>
             Voltar para Home
           </Link>
@@ -326,7 +326,7 @@ export default function ClientDetailPage() {
           <div className="header-row">
             <div>
               <h1>{clientId}</h1>
-              <p>{hierarchy.length} especialista(s) · {stats.total} pagina(s)</p>
+              <p>{hierarchy.length} especialista(s) · {stats.total} página(s)</p>
             </div>
           </div>
         </header>
@@ -366,7 +366,7 @@ export default function ClientDetailPage() {
 
         {hasProblems && (
           <div className="alert-banner">
-            Atencao: {stats.offline + stats.soft404} pagina(s) com problema!
+            Atenção: {stats.offline + stats.soft404} página(s) com problema!
           </div>
         )}
 
@@ -384,13 +384,13 @@ export default function ClientDetailPage() {
         {/* Hierarchy: Specialist → Product → Pages */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "2rem", marginBottom: "0.75rem", gap: "1rem" }}>
           <h2 className="section-title" style={{ margin: 0 }}>
-            <Users size={20} /> Especialistas e Paginas
+            <Users size={20} /> Especialistas e Páginas
           </h2>
           <div style={{ position: "relative", maxWidth: "300px", flex: 1 }}>
             <Search size={16} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)" }} />
             <input
               type="text"
-              placeholder="Buscar pagina, URL, especialista..."
+              placeholder="Buscar página, URL, especialista..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="input"
@@ -414,7 +414,7 @@ export default function ClientDetailPage() {
               <Users size={20} />
               <div style={{ flex: 1 }}>
                 <h3>{spec.name}</h3>
-                <p>{spec.products.length} produto(s) · {spec.totalPages} pagina(s)</p>
+                <p>{spec.products.length} produto(s) · {spec.totalPages} página(s)</p>
               </div>
               {expandedSpecialists.has(spec.name)
                 ? <ChevronDown size={16} />
@@ -430,7 +430,7 @@ export default function ClientDetailPage() {
                     <div className="product-card-header">
                       <Package size={16} />
                       <strong>{prod.name}</strong>
-                      <span className="form-hint">({prod.pages.length} pagina{prod.pages.length !== 1 ? 's' : ''})</span>
+                      <span className="form-hint">({prod.pages.length} página{prod.pages.length !== 1 ? 's' : ''})</span>
                     </div>
 
                     <div className="table-container">
@@ -444,7 +444,7 @@ export default function ClientDetailPage() {
                         </colgroup>
                         <thead>
                           <tr>
-                            <th>Pagina</th>
+                            <th>Página</th>
                             <th>URL</th>
                             <th>Status</th>
                             <th>Tempo</th>

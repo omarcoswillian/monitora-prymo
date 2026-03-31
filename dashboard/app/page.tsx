@@ -153,28 +153,28 @@ const DEFAULT_SLOW_THRESHOLD = 3000;
 
 const ERROR_TYPE_LABELS: Record<string, { label: string; tooltip: string }> =
   {
-    HTTP_404: { label: "404", tooltip: "Pagina nao encontrada (HTTP 404)" },
+    HTTP_404: { label: "404", tooltip: "Página não encontrada (HTTP 404)" },
     HTTP_500: { label: "5xx", tooltip: "Erro no servidor (HTTP 500+)" },
     TIMEOUT: {
       label: "Timeout",
-      tooltip: "A requisicao demorou demais e foi cancelada",
+      tooltip: "A requisição demorou demais e foi cancelada",
     },
     SOFT_404: {
       label: "Soft 404",
       tooltip:
-        'HTTP 200 mas conteudo indica erro (ex: "pagina nao encontrada")',
+        'HTTP 200 mas conteúdo indica erro (ex: "página não encontrada")',
     },
     CONNECTION_ERROR: {
-      label: "Conexao",
-      tooltip: "Nao foi possivel conectar ao servidor",
+      label: "Conexão",
+      tooltip: "Não foi possível conectar ao servidor",
     },
     WAF_BLOCK: {
       label: "WAF",
-      tooltip: "Bloqueado por firewall ou protecao anti-bot",
+      tooltip: "Bloqueado por firewall ou proteção anti-bot",
     },
     REDIRECT_LOOP: {
       label: "Redirect",
-      tooltip: "Redirecionamento excessivo ou para pagina de bloqueio",
+      tooltip: "Redirecionamento excessivo ou para página de bloqueio",
     },
     UNKNOWN: { label: "Erro", tooltip: "Erro desconhecido" },
   };
@@ -187,10 +187,10 @@ function formatTimeAgo(timestamp: string): string {
   const diffMin = Math.floor(diffSec / 60);
   const diffHour = Math.floor(diffMin / 60);
 
-  if (diffSec < 60) return `ha ${diffSec}s`;
-  if (diffMin < 60) return `ha ${diffMin}min`;
-  if (diffHour < 24) return `ha ${diffHour}h`;
-  return `ha ${Math.floor(diffHour / 24)}d`;
+  if (diffSec < 60) return `há ${diffSec}s`;
+  if (diffMin < 60) return `há ${diffMin}min`;
+  if (diffHour < 24) return `há ${diffHour}h`;
+  return `há ${Math.floor(diffHour / 24)}d`;
 }
 
 function getStatusType(
@@ -513,7 +513,7 @@ export default function Dashboard() {
         id: "timeout",
         priority: 1,
         icon: "timeout",
-        message: `${timeoutPages.length} pagina(s) em TIMEOUT agora`,
+        message: `${timeoutPages.length} página(s) em TIMEOUT agora`,
         detail: timeoutPages.map((p) => p.name).slice(0, 3).join(", "),
         cta: { label: "Ver", action: "filter", payload: "timeout" },
       });
@@ -526,7 +526,7 @@ export default function Dashboard() {
         id: "blocked",
         priority: 2,
         icon: "blocked",
-        message: `${blockedPages.length} pagina(s) BLOQUEADA(S)`,
+        message: `${blockedPages.length} página(s) BLOQUEADA(S)`,
         detail: blockedPages.map((p) => p.name).slice(0, 3).join(", "),
         cta: { label: "Diagnosticar", action: "filter", payload: "blocked" },
       });
@@ -539,7 +539,7 @@ export default function Dashboard() {
         id: "offline",
         priority: 3,
         icon: "offline",
-        message: `${offlinePages.length} pagina(s) OFFLINE`,
+        message: `${offlinePages.length} página(s) OFFLINE`,
         detail: offlinePages.map((p) => p.name).slice(0, 3).join(", "),
         cta: { label: "Ver", action: "filter", payload: "offline" },
       });
@@ -557,7 +557,7 @@ export default function Dashboard() {
           id: "performance",
           priority: 4,
           icon: "performance",
-          message: `${perfDropPages.length} pagina(s) com queda de Performance > 15pts`,
+          message: `${perfDropPages.length} página(s) com queda de Performance > 15pts`,
           detail: perfDropPages.map((p) => p.name).slice(0, 3).join(", "),
           cta: { label: "Reauditar", action: "reaudit", payload: perfDropPages[0]?.id || "" },
         });
@@ -571,7 +571,7 @@ export default function Dashboard() {
         id: "soft404",
         priority: 5,
         icon: "soft404",
-        message: `${soft404Pages.length} pagina(s) com Soft 404 detectado`,
+        message: `${soft404Pages.length} página(s) com Soft 404 detectado`,
         detail: soft404Pages.map((p) => p.name).slice(0, 3).join(", "),
         cta: { label: "Ver", action: "filter", payload: "soft404" },
       });
@@ -584,7 +584,7 @@ export default function Dashboard() {
         id: "slow",
         priority: 6,
         icon: "slow",
-        message: `${verySlowPages.length} pagina(s) com tempo > ${slowThreshold * 2}ms`,
+        message: `${verySlowPages.length} página(s) com tempo > ${slowThreshold * 2}ms`,
         detail: verySlowPages.map((p) => p.name).slice(0, 3).join(", "),
         cta: { label: "Ver", action: "filter", payload: "slow" },
       });
@@ -597,7 +597,7 @@ export default function Dashboard() {
         id: "uptime",
         priority: 7,
         icon: "uptime",
-        message: `Uptime abaixo de 95% nas ultimas 24h (${lastDayUptime.uptime}%)`,
+        message: `Uptime abaixo de 95% nas últimas 24h (${lastDayUptime.uptime}%)`,
         cta: { label: "Ver incidentes", action: "navigate", payload: "/incidents" },
       });
     }
@@ -820,7 +820,7 @@ export default function Dashboard() {
   return (
     <AppShell>
       <Topbar
-        searchPlaceholder="Pesquisar paginas..."
+        searchPlaceholder="Pesquisar páginas..."
       />
       <div className="container">
         <header className="header">
@@ -953,7 +953,7 @@ export default function Dashboard() {
         {hasProblems && (
           <div className="alert-banner">
             <AlertTriangle size={18} />
-            Atencao: {counts.offline + counts.soft404 + counts.timeout + counts.blocked} pagina(s) com problema
+            Atenção: {counts.offline + counts.soft404 + counts.timeout + counts.blocked} página(s) com problema
             detectado!
           </div>
         )}
@@ -1049,7 +1049,7 @@ export default function Dashboard() {
             icon={<AlertTriangle size={14} />}
             count={attentionCount > 0 ? attentionCount : undefined}
           >
-            Atencao
+            Atenção
           </FilterChip>
           {(
             [
@@ -1076,7 +1076,7 @@ export default function Dashboard() {
                 <div
                   className={`toggle-switch ${bulkToggling === "all" ? "disabled" : ""}`}
                   onClick={() => !bulkToggling && bulkToggle(!allActive, { all: true })}
-                  title={allActive ? "Pausar todas as paginas" : "Ativar todas as paginas"}
+                  title={allActive ? "Pausar todas as páginas" : "Ativar todas as páginas"}
                 >
                   <span className="toggle-label">Todas</span>
                   <div className={`toggle-track ${allActive ? "active" : ""}`}>
@@ -1092,8 +1092,8 @@ export default function Dashboard() {
         {filtered.length === 0 ? (
           <div className="empty">
             {pages.length === 0
-              ? "Nenhuma pagina monitorada. Adicione uma para comecar."
-              : "Nenhuma pagina corresponde ao filtro selecionado."}
+              ? "Nenhuma página monitorada. Adicione uma para começar."
+              : "Nenhuma página corresponde ao filtro selecionado."}
           </div>
         ) : (
           hierarchy.map((clientGroup) => (
@@ -1106,7 +1106,7 @@ export default function Dashboard() {
                       {clientGroup.clientName}
                     </Link>
                   </h3>
-                  <p>{clientGroup.specialists.length} especialista(s) · {clientGroup.totalPages} pagina(s)</p>
+                  <p>{clientGroup.specialists.length} especialista(s) · {clientGroup.totalPages} página(s)</p>
                 </div>
               </div>
               <div className="settings-section-content">
@@ -1119,7 +1119,7 @@ export default function Dashboard() {
                         <div
                           className={`toggle-switch ${bulkToggling === spec.specialistId ? "disabled" : ""}`}
                           onClick={() => !bulkToggling && bulkToggle(spec.allPaused, { specialistId: spec.specialistId })}
-                          title={spec.allPaused ? `Ativar paginas de ${spec.name}` : `Pausar paginas de ${spec.name}`}
+                          title={spec.allPaused ? `Ativar páginas de ${spec.name}` : `Pausar páginas de ${spec.name}`}
                           style={{ marginLeft: "0.5rem" }}
                         >
                           <div className={`toggle-track ${!spec.allPaused ? "active" : ""}`}>
@@ -1134,19 +1134,19 @@ export default function Dashboard() {
                         <div className="product-card-header">
                           <Package size={16} />
                           <strong>{prod.name}</strong>
-                          <span className="form-hint">({prod.pages.length} pagina{prod.pages.length !== 1 ? 's' : ''})</span>
+                          <span className="form-hint">({prod.pages.length} página{prod.pages.length !== 1 ? 's' : ''})</span>
                         </div>
 
                         <div className="table-container">
                           <table>
                             <thead>
                               <tr>
-                                <th>Pagina</th>
+                                <th>Página</th>
                                 <th>URL</th>
                                 <th>Status</th>
                                 <th>Tempo</th>
                                 <th>Scores</th>
-                                <th>Acoes</th>
+                                <th>Ações</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1255,7 +1255,7 @@ export default function Dashboard() {
 
       {/* Floating Action Button */}
       {isAdmin && (
-        <button className="fab" onClick={openCreateModal} aria-label="Adicionar pagina">
+        <button className="fab" onClick={openCreateModal} aria-label="Adicionar página">
           <Plus size={24} />
         </button>
       )}

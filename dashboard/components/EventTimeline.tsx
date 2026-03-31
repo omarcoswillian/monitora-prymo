@@ -97,7 +97,7 @@ export default function EventTimeline({ pageId }: EventTimelineProps) {
             className={`toggle-btn ${period === '24h' ? 'active' : ''}`}
             onClick={() => setPeriod('24h')}
           >
-            Ultimas 24h
+            Últimas 24h
           </button>
           <button
             className={`toggle-btn ${period === '7d' ? 'active' : ''}`}
@@ -111,7 +111,7 @@ export default function EventTimeline({ pageId }: EventTimelineProps) {
       {loading ? (
         <div className="event-timeline-loading">Carregando eventos...</div>
       ) : events.length === 0 ? (
-        <div className="event-timeline-empty">Nenhum evento registrado neste periodo</div>
+        <div className="event-timeline-empty">Nenhum evento registrado neste período</div>
       ) : (
         <div className="event-timeline">
           {events.map((event) => {

@@ -42,12 +42,12 @@ export function GenerateReportButton({
       const data = await res.json()
 
       if (!res.ok) {
-        throw new Error(data.error || 'Erro ao gerar relatorio')
+        throw new Error(data.error || 'Erro ao gerar relatório')
       }
 
       onSuccess?.()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao gerar relatorio'
+      const message = err instanceof Error ? err.message : 'Erro ao gerar relatório'
       onError?.(message)
     } finally {
       setIsGenerating(false)
@@ -64,12 +64,12 @@ export function GenerateReportButton({
       {isGenerating ? (
         <>
           <Loader2 size={16} className="spin-animation" />
-          Gerando relatorio...
+          Gerando relatório...
         </>
       ) : (
         <>
           <FilePlus size={16} />
-          Gerar relatorio agora
+          Gerar relatório agora
         </>
       )}
     </button>

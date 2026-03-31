@@ -23,7 +23,7 @@ function LoginForm() {
       if (urlError === 'CredentialsSignin') {
         setError('Email ou senha incorretos')
       } else if (urlError === 'Configuration') {
-        setError('Erro de configuracao do servidor. Contate o administrador.')
+        setError('Erro de configuração do servidor. Contate o administrador.')
       } else {
         setError('Erro ao fazer login. Tente novamente.')
       }
@@ -45,7 +45,7 @@ function LoginForm() {
       if (result?.error) {
         // Check for specific error types
         if (result.error.includes('configuration') || result.error.includes('Configuration')) {
-          setError('Erro de configuracao do servidor. Contate o administrador.')
+          setError('Erro de configuração do servidor. Contate o administrador.')
         } else {
           setError('Email ou senha incorretos')
         }

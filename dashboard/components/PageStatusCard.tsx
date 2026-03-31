@@ -63,7 +63,7 @@ export default function PageStatusCard({ status, enabled }: PageStatusCardProps)
           <Clock size={24} className="status-icon status-icon-disabled" />
           <div>
             <h3 className="status-card-title">Monitoramento Pausado</h3>
-            <p className="status-card-subtitle">Esta pagina esta com o monitoramento desativado</p>
+            <p className="status-card-subtitle">Esta página está com o monitoramento desativado</p>
           </div>
         </div>
       </div>
@@ -77,7 +77,7 @@ export default function PageStatusCard({ status, enabled }: PageStatusCardProps)
           <Activity size={24} className="status-icon status-icon-pending" />
           <div>
             <h3 className="status-card-title">Aguardando Checagem</h3>
-            <p className="status-card-subtitle">A primeira verificacao ainda nao foi realizada</p>
+            <p className="status-card-subtitle">A primeira verificação ainda não foi realizada</p>
           </div>
         </div>
       </div>
@@ -135,7 +135,7 @@ export default function PageStatusCard({ status, enabled }: PageStatusCardProps)
         </div>
 
         <div className="status-card-item">
-          <span className="status-card-label">Ultima Checagem</span>
+          <span className="status-card-label">Última Checagem</span>
           <span className="status-card-value status-card-value-small">
             {formatDateTime(status.lastCheckedAt)}
           </span>

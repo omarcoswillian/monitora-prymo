@@ -52,8 +52,8 @@ export default function LinkChecker({ pageId }: { pageId: string }) {
       <div className="settings-section-header">
         <Link2 size={20} />
         <div style={{ flex: 1 }}>
-          <h3>Verificacao de Links e Checkouts</h3>
-          <p>Valida se todos os links e paginas de compra estao funcionando</p>
+          <h3>Verificação de Links e Checkouts</h3>
+          <p>Valida se todos os links e páginas de compra estão funcionando</p>
         </div>
         <button
           className="btn btn-primary"
@@ -84,7 +84,7 @@ export default function LinkChecker({ pageId }: { pageId: string }) {
               <div className="form-hint">{data.summary.checkoutBroken} com problema</div>
             </div>
             <div className="card">
-              <div className="card-label">Total na Pagina</div>
+              <div className="card-label">Total na Página</div>
               <div className="card-value">{data.totalLinks}</div>
               <div className="form-hint">{data.checkedLinks} verificados</div>
             </div>
@@ -170,7 +170,7 @@ export default function LinkChecker({ pageId }: { pageId: string }) {
           {/* All OK message */}
           {data.brokenLinks.length === 0 && (
             <div className="form-success">
-              <CheckCircle2 size={16} style={{ display: 'inline', verticalAlign: 'middle' }} /> Todos os {data.summary.total} links verificados estao funcionando!
+              <CheckCircle2 size={16} style={{ display: 'inline', verticalAlign: 'middle' }} /> Todos os {data.summary.total} links verificados estão funcionando!
             </div>
           )}
 

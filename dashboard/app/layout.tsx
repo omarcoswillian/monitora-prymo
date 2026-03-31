@@ -11,7 +11,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Prymo - Pages",
-  description: "Dashboard de monitoramento de paginas web",
+  description: "Dashboard de monitoramento de páginas web",
 };
 
 // Script to prevent flash of wrong theme

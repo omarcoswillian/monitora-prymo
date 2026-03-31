@@ -84,8 +84,8 @@ export default function ComparacaoMensalPage() {
     return (
       <AppShell>
         <div className="container">
-          <h1>Comparacao Mensal</h1>
-          <div className="empty">Sem dados suficientes para comparacao.</div>
+          <h1>Comparação Mensal</h1>
+          <div className="empty">Sem dados suficientes para comparação.</div>
         </div>
       </AppShell>
     )
@@ -95,7 +95,7 @@ export default function ComparacaoMensalPage() {
     <AppShell>
       <div className="container">
         <header className="header">
-          <h1>Comparacao Mensal</h1>
+          <h1>Comparação Mensal</h1>
           <p className="header-description">
             {data.currentMonth} vs {data.previousMonth}
           </p>
@@ -113,10 +113,10 @@ export default function ComparacaoMensalPage() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Metrica</th>
+                      <th>Métrica</th>
                       <th>{comp.previousMonth.label}</th>
                       <th>{comp.currentMonth.label}</th>
-                      <th>Variacao</th>
+                      <th>Variação</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -145,7 +145,7 @@ export default function ComparacaoMensalPage() {
                       <td><VariationBadge value={comp.variation.performanceScore} /></td>
                     </tr>
                     <tr>
-                      <td><strong>Verificacoes</strong></td>
+                      <td><strong>Verificações</strong></td>
                       <td>{comp.previousMonth.metrics.totalChecks}</td>
                       <td>{comp.currentMonth.metrics.totalChecks}</td>
                       <td>-</td>

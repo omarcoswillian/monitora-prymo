@@ -102,26 +102,26 @@ export async function GET(request: Request) {
 
     if (monitorOk && pagespeedOk) {
       conclusion = 'online'
-      conclusionText = 'Pagina funcionando normalmente em ambas as verificacoes'
+      conclusionText = 'Página funcionando normalmente em ambas as verificações'
     } else if (!monitorOk && pagespeedOk) {
       if (monitorStatus === 'BLOQUEADO') {
         conclusion = 'possible_block'
-        conclusionText = 'Possivel bloqueio - WAF/firewall bloqueando o monitor Prymo, mas PageSpeed funciona normalmente'
+        conclusionText = 'Possível bloqueio - WAF/firewall bloqueando o monitor Prymo, mas PageSpeed funciona normalmente'
       } else {
         conclusion = 'monitor_fail'
-        conclusionText = 'Monitor detectou problema, mas PageSpeed OK - possivel bloqueio de bot ou instabilidade temporaria'
+        conclusionText = 'Monitor detectou problema, mas PageSpeed OK - possível bloqueio de bot ou instabilidade temporária'
       }
     } else if (monitorOk && !pagespeedOk) {
       if (!hasAudit) {
         conclusion = 'pagespeed_pending'
-        conclusionText = 'Monitor OK, auditoria PageSpeed ainda nao realizada'
+        conclusionText = 'Monitor OK, auditoria PageSpeed ainda não realizada'
       } else {
         conclusion = 'pagespeed_fail'
-        conclusionText = 'Monitor OK, mas PageSpeed falhou - possivel problema com a API do Google ou pagina bloqueando Lighthouse'
+        conclusionText = 'Monitor OK, mas PageSpeed falhou - possível problema com a API do Google ou página bloqueando Lighthouse'
       }
     } else {
       conclusion = 'both_fail'
-      conclusionText = 'Pagina com problema real - ambas as verificacoes detectaram falha'
+      conclusionText = 'Página com problema real - ambas as verificações detectaram falha'
     }
 
     const response: ComparisonResult = {

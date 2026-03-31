@@ -68,7 +68,7 @@ const ERROR_TYPE_LABELS: Record<string, string> = {
   HTTP_500: 'HTTP 5xx',
   TIMEOUT: 'Timeout',
   SOFT_404: 'Soft 404',
-  CONNECTION_ERROR: 'Conexao',
+  CONNECTION_ERROR: 'Conexão',
   WAF_BLOCK: 'WAF/Bloqueio',
   REDIRECT_LOOP: 'Redirect Loop',
   UNKNOWN: 'Desconhecido',
@@ -216,7 +216,7 @@ export default function IncidentsPage() {
           <div className="header-row">
             <div>
               <h1>Incidentes</h1>
-              <p>Historico de erros e alertas</p>
+              <p>Histórico de erros e alertas</p>
             </div>
           </div>
         </header>
@@ -255,7 +255,7 @@ export default function IncidentsPage() {
           <div className="card-icon">
             <Gauge size={20} />
           </div>
-          <div className="card-label">Lentidao</div>
+          <div className="card-label">Lentidão</div>
           <div className="card-value slow">{stats.slow}</div>
         </div>
         <div className={`card ${stats.timeout > 0 ? 'card-highlight-danger' : ''}`}>
@@ -317,12 +317,12 @@ export default function IncidentsPage() {
             <thead>
               <tr>
                 <th>Data/Hora</th>
-                <th>Pagina</th>
+                <th>Página</th>
                 <th>Cliente</th>
                 <th>Tipo</th>
                 <th>Status</th>
-                <th>Duracao</th>
-                <th>Acoes</th>
+                <th>Duração</th>
+                <th>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -403,7 +403,7 @@ export default function IncidentsPage() {
                         <Link
                           href={`/pages/${pageDbId}`}
                           className="btn btn-small btn-icon"
-                          title="Ver pagina"
+                          title="Ver página"
                         >
                           <ExternalLink size={14} />
                         </Link>

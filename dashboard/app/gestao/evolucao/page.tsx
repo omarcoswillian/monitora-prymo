@@ -111,9 +111,9 @@ export default function EvolucaoPage() {
       <div className="gestao-page">
         <div className="gestao-header">
           <div>
-            <h1 className="gestao-title">Evolucao</h1>
+            <h1 className="gestao-title">Evolução</h1>
             <p className="gestao-subtitle">
-              Compare periodos e identifique tendencias de melhoria ou degradacao.
+              Compare períodos e identifique tendências de melhoria ou degradação.
             </p>
           </div>
         </div>
@@ -127,7 +127,7 @@ export default function EvolucaoPage() {
             </select>
           </div>
           <div className="gestao-filter-group">
-            <label className="gestao-filter-label">Comparacao</label>
+            <label className="gestao-filter-label">Comparação</label>
             <div className="gestao-period-buttons">
               {PERIOD_OPTIONS.map(opt => (
                 <button key={opt.value} className={`gestao-period-btn ${period === opt.value ? 'gestao-period-btn-active' : ''}`} onClick={() => setPeriod(opt.value)}>
@@ -141,11 +141,11 @@ export default function EvolucaoPage() {
         {loading ? (
           <div className="ranking-loading"><div className="ranking-spinner" /><span>Carregando dados...</span></div>
         ) : !evolution ? (
-          <div className="gestao-empty">Sem dados suficientes para comparacao.</div>
+          <div className="gestao-empty">Sem dados suficientes para comparação.</div>
         ) : (
           <>
             <div className="gestao-kpi-grid">
-              <VariationCard label="Score Medio" atual={evolution.score.atual} anterior={evolution.score.anterior} />
+              <VariationCard label="Score Médio" atual={evolution.score.atual} anterior={evolution.score.anterior} />
               <VariationCard label="Uptime" atual={evolution.uptime.atual} anterior={evolution.uptime.anterior} unit="%" />
               <VariationCard label="Response Time" atual={evolution.responseTime.atual} anterior={evolution.responseTime.anterior} unit="ms" invertColor />
               <VariationCard label="Incidentes" atual={evolution.incidents.atual} anterior={evolution.incidents.anterior} invertColor />
@@ -168,7 +168,7 @@ export default function EvolucaoPage() {
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="gestao-empty">Sem dados no periodo.</div>
+                    <div className="gestao-empty">Sem dados no período.</div>
                   )}
                 </div>
               </div>
@@ -189,7 +189,7 @@ export default function EvolucaoPage() {
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="gestao-empty">Sem dados no periodo.</div>
+                    <div className="gestao-empty">Sem dados no período.</div>
                   )}
                 </div>
               </div>
@@ -210,7 +210,7 @@ export default function EvolucaoPage() {
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="gestao-empty">Sem incidentes no periodo.</div>
+                    <div className="gestao-empty">Sem incidentes no período.</div>
                   )}
                 </div>
               </div>
@@ -218,13 +218,13 @@ export default function EvolucaoPage() {
               {/* Pages that improved / degraded */}
               <div className="gestao-card">
                 <div className="gestao-card-header">
-                  <h3 className="gestao-card-title">Paginas que Melhoraram / Pioraram</h3>
+                  <h3 className="gestao-card-title">Páginas que Melhoraram / Pioraram</h3>
                 </div>
                 <div className="gestao-mini-table">
                   <table className="ranking-table">
                     <thead>
                       <tr>
-                        <th>Pagina</th>
+                        <th>Página</th>
                         <th>Score</th>
                         <th>Var.</th>
                       </tr>

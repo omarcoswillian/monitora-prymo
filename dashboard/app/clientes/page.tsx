@@ -51,9 +51,9 @@ export default function ClientesPage() {
         <header className="header">
           <div className="header-row">
             <div>
-              <h1>Gestao de Clientes</h1>
+              <h1>Gestão de Clientes</h1>
               <p className="header-description">
-                Cadastre e gerencie clientes, especialistas, produtos e paginas.
+                Cadastre e gerencie clientes, especialistas, produtos e páginas.
               </p>
             </div>
             <div className="header-actions">
@@ -88,10 +88,10 @@ export default function ClientesPage() {
                   <th>Cliente</th>
                   <th>Especialistas</th>
                   <th>Produtos</th>
-                  <th>Paginas</th>
-                  <th>Usuarios</th>
+                  <th>Páginas</th>
+                  <th>Usuários</th>
                   <th>Criado em</th>
-                  <th>Acoes</th>
+                  <th>Ações</th>
                 </tr>
               </thead>
               <tbody>

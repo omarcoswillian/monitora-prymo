@@ -77,9 +77,9 @@ export default function VisaoGeralPage() {
       <div className="gestao-page">
         <div className="gestao-header">
           <div>
-            <h1 className="gestao-title">Visao Geral</h1>
+            <h1 className="gestao-title">Visão Geral</h1>
             <p className="gestao-subtitle">
-              Resumo executivo da saude de todas as paginas monitoradas.
+              Resumo executivo da saúde de todas as páginas monitoradas.
             </p>
           </div>
         </div>
@@ -99,7 +99,7 @@ export default function VisaoGeralPage() {
             </select>
           </div>
           <div className="gestao-filter-group">
-            <label className="gestao-filter-label">Periodo</label>
+            <label className="gestao-filter-label">Período</label>
             <div className="gestao-period-buttons">
               {PERIOD_OPTIONS.map(opt => (
                 <button
@@ -126,22 +126,22 @@ export default function VisaoGeralPage() {
               <div className="gestao-kpi-card">
                 <span className="gestao-kpi-label">Score Geral</span>
                 <span className="gestao-kpi-value">{kpis.score}</span>
-                <span className="gestao-kpi-sub">media de {kpis.total} paginas</span>
+                <span className="gestao-kpi-sub">média de {kpis.total} páginas</span>
               </div>
               <div className="gestao-kpi-card">
-                <span className="gestao-kpi-label">Uptime Medio</span>
+                <span className="gestao-kpi-label">Uptime Médio</span>
                 <span className="gestao-kpi-value">{kpis.uptime}%</span>
-                <span className="gestao-kpi-sub">ultimos {period}d</span>
+                <span className="gestao-kpi-sub">últimos {period}d</span>
               </div>
               <div className="gestao-kpi-card">
-                <span className="gestao-kpi-label">Performance Media</span>
+                <span className="gestao-kpi-label">Performance Média</span>
                 <span className="gestao-kpi-value">{kpis.performance}</span>
                 <span className="gestao-kpi-sub">PageSpeed score</span>
               </div>
               <div className="gestao-kpi-card">
                 <span className="gestao-kpi-label">Incidentes</span>
                 <span className="gestao-kpi-value">{kpis.incidents}</span>
-                <span className="gestao-kpi-sub">ultimos {period}d</span>
+                <span className="gestao-kpi-sub">últimos {period}d</span>
               </div>
             </div>
 
@@ -150,7 +150,7 @@ export default function VisaoGeralPage() {
               {/* Uptime trend line */}
               <div className="gestao-card">
                 <div className="gestao-card-header">
-                  <h3 className="gestao-card-title">Uptime Medio Diario</h3>
+                  <h3 className="gestao-card-title">Uptime Médio Diário</h3>
                 </div>
                 <div className="gestao-chart-body">
                   {dailyUptime.length > 0 ? (
@@ -164,7 +164,7 @@ export default function VisaoGeralPage() {
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="gestao-empty">Sem dados de uptime no periodo.</div>
+                    <div className="gestao-empty">Sem dados de uptime no período.</div>
                   )}
                 </div>
               </div>
@@ -172,7 +172,7 @@ export default function VisaoGeralPage() {
               {/* Status Distribution Donut */}
               <div className="gestao-card">
                 <div className="gestao-card-header">
-                  <h3 className="gestao-card-title">Distribuicao de Status</h3>
+                  <h3 className="gestao-card-title">Distribuição de Status</h3>
                 </div>
                 <div className="gestao-chart-body">
                   {statusDist.length > 0 ? (
@@ -190,7 +190,7 @@ export default function VisaoGeralPage() {
                       </PieChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="gestao-empty">Nenhuma pagina encontrada.</div>
+                    <div className="gestao-empty">Nenhuma página encontrada.</div>
                   )}
                 </div>
               </div>
@@ -198,7 +198,7 @@ export default function VisaoGeralPage() {
               {/* Score buckets bar chart */}
               <div className="gestao-card">
                 <div className="gestao-card-header">
-                  <h3 className="gestao-card-title">Paginas por Faixa de Score</h3>
+                  <h3 className="gestao-card-title">Páginas por Faixa de Score</h3>
                 </div>
                 <div className="gestao-chart-body">
                   <ResponsiveContainer width="100%" height={220}>
@@ -216,7 +216,7 @@ export default function VisaoGeralPage() {
               {/* Critical Pages */}
               <div className="gestao-card">
                 <div className="gestao-card-header">
-                  <h3 className="gestao-card-title">Top 5 Paginas Criticas</h3>
+                  <h3 className="gestao-card-title">Top 5 Páginas Críticas</h3>
                 </div>
                 <div className="gestao-mini-table">
                   {criticalPages.length > 0 ? (
@@ -224,7 +224,7 @@ export default function VisaoGeralPage() {
                       <thead>
                         <tr>
                           <th>#</th>
-                          <th>Pagina</th>
+                          <th>Página</th>
                           <th>Score</th>
                           <th>Status</th>
                         </tr>
@@ -254,7 +254,7 @@ export default function VisaoGeralPage() {
                       </tbody>
                     </table>
                   ) : (
-                    <div className="gestao-empty">Nenhuma pagina critica encontrada.</div>
+                    <div className="gestao-empty">Nenhuma página crítica encontrada.</div>
                   )}
                 </div>
               </div>

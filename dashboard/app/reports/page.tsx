@@ -113,7 +113,7 @@ function AIReportViewer({
         <div className="report-viewer-header">
           <div className="report-viewer-title">
             <h2>
-              {report.type === 'global' ? 'Relatorio Global' : report.clientName}
+              {report.type === 'global' ? 'Relatório Global' : report.clientName}
             </h2>
             <div className="report-viewer-meta">
               <span>
@@ -130,7 +130,7 @@ function AIReportViewer({
             <button
               className={`btn btn-small ${copied ? 'btn-success' : ''}`}
               onClick={handleCopy}
-              title="Copiar relatorio"
+              title="Copiar relatório"
             >
               {copied ? <Check size={16} /> : <Copy size={16} />}
               {copied ? 'Copiado' : 'Copiar'}
@@ -184,7 +184,7 @@ function GenerateAIModal({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-container" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Gerar Relatorio com IA</h2>
+          <h2>Gerar Relatório com IA</h2>
           <button className="modal-close" onClick={onClose}>
             <X size={20} />
           </button>
@@ -194,7 +194,7 @@ function GenerateAIModal({
             <div className="ai-warning">
               <AlertCircle size={16} />
               <span>
-                API da IA nao configurada. O relatorio sera gerado com template basico.
+                API da IA não configurada. O relatório será gerado com template básico.
               </span>
             </div>
           )}
@@ -202,13 +202,13 @@ function GenerateAIModal({
           <div className="ai-info-box">
             <Info size={16} />
             <span>
-              O relatorio sera gerado com base nos dados dos ultimos 7 dias,
-              incluindo uptime, incidentes e metricas PageSpeed.
+              O relatório será gerado com base nos dados dos últimos 7 dias,
+              incluindo uptime, incidentes e métricas PageSpeed.
             </span>
           </div>
 
           <div className="form-group">
-            <label className="settings-label">Escopo do relatorio</label>
+            <label className="settings-label">Escopo do relatório</label>
             <div className="settings-radio-group">
               <label className="settings-radio">
                 <input
@@ -267,7 +267,7 @@ function GenerateAIModal({
             ) : (
               <>
                 <Sparkles size={16} />
-                Gerar relatorio
+                Gerar relatório
               </>
             )}
           </button>
@@ -277,7 +277,7 @@ function GenerateAIModal({
   )
 }
 
-// ===== PAGINA PRINCIPAL =====
+// ===== PÁGINA PRINCIPAL =====
 
 export default function ReportsPage() {
   const [legacyReports, setLegacyReports] = useState<LegacyReport[]>([])
@@ -352,9 +352,9 @@ export default function ReportsPage() {
     try {
       const res = await fetch(`/api/reports?id=${encodeURIComponent(id)}`)
       const json = await res.json()
-      setReportContent(json.content || 'Erro ao carregar relatorio')
+      setReportContent(json.content || 'Erro ao carregar relatório')
     } catch {
-      setReportContent('Erro ao carregar relatorio')
+      setReportContent('Erro ao carregar relatório')
     }
   }
 
@@ -371,7 +371,7 @@ export default function ReportsPage() {
   }
 
   const handleGenerateLegacySuccess = () => {
-    success('Relatorio(s) gerado(s) com sucesso!')
+    success('Relatório(s) gerado(s) com sucesso!')
     fetchData()
   }
 
@@ -392,14 +392,14 @@ export default function ReportsPage() {
       const json = await res.json()
 
       if (!res.ok) {
-        throw new Error(json.error || 'Erro ao gerar relatorio')
+        throw new Error(json.error || 'Erro ao gerar relatório')
       }
 
-      success(json.warning || 'Relatorio gerado com sucesso!')
+      success(json.warning || 'Relatório gerado com sucesso!')
       setShowGenerateModal(false)
       fetchData()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao gerar relatorio'
+      const message = err instanceof Error ? err.message : 'Erro ao gerar relatório'
       error(message)
     } finally {
       setIsGenerating(false)
@@ -407,7 +407,7 @@ export default function ReportsPage() {
   }
 
   const handleDeleteAIReport = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este relatorio?')) return
+    if (!confirm('Tem certeza que deseja excluir este relatório?')) return
 
     try {
       const res = await fetch(`/api/reports/ai?id=${id}`, { method: 'DELETE' })
@@ -416,10 +416,10 @@ export default function ReportsPage() {
         throw new Error('Erro ao excluir')
       }
 
-      success('Relatorio excluido')
+      success('Relatório excluído')
       fetchData()
     } catch {
-      error('Erro ao excluir relatorio')
+      error('Erro ao excluir relatório')
     }
   }
 
@@ -457,15 +457,15 @@ export default function ReportsPage() {
             <ChevronRight size={14} />
           </span>
           <div className="breadcrumb-segment">
-            <span className="breadcrumb-item breadcrumb-current">Relatorios</span>
+            <span className="breadcrumb-item breadcrumb-current">Relatórios</span>
           </div>
         </nav>
 
         <header className="header">
           <div className="header-row">
             <div>
-              <h1>Relatorios</h1>
-              <p>Relatorios de monitoramento gerados automaticamente e com IA</p>
+              <h1>Relatórios</h1>
+              <p>Relatórios de monitoramento gerados automaticamente e com IA</p>
             </div>
             <div className="header-actions">
               <button className="btn btn-primary" onClick={() => setShowGenerateModal(true)}>
@@ -483,7 +483,7 @@ export default function ReportsPage() {
             onClick={() => setActiveTab('ai')}
           >
             <Bot size={16} />
-            Relatorios com IA
+            Relatórios com IA
             {aiReports.length > 0 && (
               <span className="reports-tab-count">{aiReports.length}</span>
             )}
@@ -493,7 +493,7 @@ export default function ReportsPage() {
             onClick={() => setActiveTab('legacy')}
           >
             <FileText size={16} />
-            Relatorios Semanais
+            Relatórios Semanais
             {legacyReports.length > 0 && (
               <span className="reports-tab-count">{legacyReports.length}</span>
             )}
@@ -506,11 +506,11 @@ export default function ReportsPage() {
             {aiReports.length === 0 ? (
               <div className="empty-state">
                 <Bot size={48} />
-                <h3>Nenhum relatorio com IA</h3>
+                <h3>Nenhum relatório com IA</h3>
                 <p>
-                  Gere seu primeiro relatorio com inteligencia artificial.
+                  Gere seu primeiro relatório com inteligência artificial.
                   <br />
-                  A IA analisa os dados dos ultimos 7 dias e gera um resumo executivo.
+                  A IA analisa os dados dos últimos 7 dias e gera um resumo executivo.
                 </p>
                 <div className="empty-state-actions">
                   <button
@@ -518,7 +518,7 @@ export default function ReportsPage() {
                     onClick={() => setShowGenerateModal(true)}
                   >
                     <Sparkles size={16} />
-                    Gerar relatorio com IA
+                    Gerar relatório com IA
                   </button>
                 </div>
               </div>
@@ -540,7 +540,7 @@ export default function ReportsPage() {
                     <div className="ai-report-card-content">
                       <div className="ai-report-card-title">
                         {report.type === 'global'
-                          ? 'Relatorio Global'
+                          ? 'Relatório Global'
                           : report.clientName}
                       </div>
                       <div className="ai-report-card-meta">
@@ -567,7 +567,7 @@ export default function ReportsPage() {
                           e.stopPropagation()
                           handleDeleteAIReport(report.id)
                         }}
-                        title="Excluir relatorio"
+                        title="Excluir relatório"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -615,11 +615,11 @@ export default function ReportsPage() {
             ) : legacyReports.length === 0 ? (
               <div className="empty-state">
                 <FileText size={48} />
-                <h3>Nenhum relatorio encontrado</h3>
+                <h3>Nenhum relatório encontrado</h3>
                 <p>
-                  Os relatorios sao gerados automaticamente toda segunda-feira as 08:30.
+                  Os relatórios são gerados automaticamente toda segunda-feira às 08:30.
                   <br />
-                  Voce pode gerar um relatorio manualmente clicando no botao abaixo.
+                  Você pode gerar um relatório manualmente clicando no botão abaixo.
                 </p>
                 <div className="empty-state-actions">
                   <GenerateReportButton
@@ -690,7 +690,7 @@ export default function ReportsPage() {
                 : `relatorio-${selectedAIReport.clientName?.replace(/\s+/g, '-')}-${selectedAIReport.period.start}.md`
               downloadReport(selectedAIReport.content, filename)
             }}
-            onCopy={() => success('Relatorio copiado para a area de transferencia')}
+            onCopy={() => success('Relatório copiado para a área de transferência')}
           />
         )}
 

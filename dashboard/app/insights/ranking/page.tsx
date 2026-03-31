@@ -78,7 +78,7 @@ function RankingTable({
           <h3 className="ranking-section-title">{title}</h3>
           {clientName && <span className="ranking-section-client">{clientName}</span>}
         </div>
-        <p className="ranking-empty">Sem dados suficientes para este periodo.</p>
+        <p className="ranking-empty">Sem dados suficientes para este período.</p>
       </div>
     )
   }
@@ -94,7 +94,7 @@ function RankingTable({
           <thead>
             <tr>
               <th className="ranking-th-rank">#</th>
-              <th className="ranking-th-page">Pagina</th>
+              <th className="ranking-th-page">Página</th>
               <th className="ranking-th-score">Score</th>
               <th className="ranking-th-perf">Performance</th>
               <th className="ranking-th-uptime">Uptime</th>
@@ -207,9 +207,9 @@ export default function RankingPage() {
         {/* Header */}
         <div className="ranking-header">
           <div>
-            <h1 className="ranking-title">Ranking de Paginas</h1>
+            <h1 className="ranking-title">Ranking de Páginas</h1>
             <p className="ranking-subtitle">
-              Este ranking mostra quais paginas exigem acao imediata e quais estao saudaveis.
+              Este ranking mostra quais páginas exigem ação imediata e quais estão saudáveis.
             </p>
           </div>
         </div>
@@ -232,7 +232,7 @@ export default function RankingPage() {
             </select>
           </div>
           <div className="ranking-filter-group">
-            <label className="ranking-filter-label">Periodo</label>
+            <label className="ranking-filter-label">Período</label>
             <div className="ranking-period-buttons">
               {PERIOD_OPTIONS.map((opt) => (
                 <button
@@ -255,14 +255,14 @@ export default function RankingPage() {
           </div>
         ) : clientRankings.length === 0 ? (
           <div className="ranking-empty-state">
-            <p>Nenhuma pagina encontrada para os filtros selecionados.</p>
+            <p>Nenhuma página encontrada para os filtros selecionados.</p>
           </div>
         ) : (
           clientRankings.map(({ client, best, worst }) => (
             <div key={client} className="ranking-client-block">
               <div className="ranking-grid">
-                <RankingTable pages={best} title="Melhores Paginas" variant="best" clientName={client} />
-                <RankingTable pages={worst} title="Piores Paginas" variant="worst" clientName={client} />
+                <RankingTable pages={best} title="Melhores Páginas" variant="best" clientName={client} />
+                <RankingTable pages={worst} title="Piores Páginas" variant="worst" clientName={client} />
               </div>
             </div>
           ))

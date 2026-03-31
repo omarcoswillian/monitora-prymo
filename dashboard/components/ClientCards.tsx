@@ -238,7 +238,7 @@ export default function ClientCards({
               <div className="client-card-stats">
                 <div className="client-stat">
                   <span className="client-stat-value">{client.totalPages}</span>
-                  <span className="client-stat-label">paginas</span>
+                  <span className="client-stat-label">páginas</span>
                 </div>
                 <div className="client-stat client-stat-ok">
                   <span className="client-stat-value">{client.online}</span>

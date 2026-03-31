@@ -74,11 +74,11 @@ interface PageTableProps {
 const DEFAULT_SLOW_THRESHOLD = 3000
 
 const ERROR_TYPE_LABELS: Record<ErrorType, { label: string; tooltip: string }> = {
-  HTTP_404: { label: '404', tooltip: 'Pagina nao encontrada (HTTP 404)' },
+  HTTP_404: { label: '404', tooltip: 'Página não encontrada (HTTP 404)' },
   HTTP_500: { label: '5xx', tooltip: 'Erro no servidor (HTTP 500+)' },
-  TIMEOUT: { label: 'Timeout', tooltip: 'A requisicao demorou demais e foi cancelada' },
-  SOFT_404: { label: 'Soft 404', tooltip: 'HTTP 200 mas conteudo indica erro (ex: "pagina nao encontrada")' },
-  CONNECTION_ERROR: { label: 'Conexao', tooltip: 'Nao foi possivel conectar ao servidor' },
+  TIMEOUT: { label: 'Timeout', tooltip: 'A requisição demorou demais e foi cancelada' },
+  SOFT_404: { label: 'Soft 404', tooltip: 'HTTP 200 mas conteúdo indica erro (ex: "página não encontrada")' },
+  CONNECTION_ERROR: { label: 'Conexão', tooltip: 'Não foi possível conectar ao servidor' },
   UNKNOWN: { label: 'Erro', tooltip: 'Erro desconhecido' },
 }
 
@@ -90,10 +90,10 @@ function formatTimeAgo(timestamp: string): string {
   const diffMin = Math.floor(diffSec / 60)
   const diffHour = Math.floor(diffMin / 60)
 
-  if (diffSec < 60) return `ha ${diffSec}s`
-  if (diffMin < 60) return `ha ${diffMin}min`
-  if (diffHour < 24) return `ha ${diffHour}h`
-  return `ha ${Math.floor(diffHour / 24)}d`
+  if (diffSec < 60) return `há ${diffSec}s`
+  if (diffMin < 60) return `há ${diffMin}min`
+  if (diffHour < 24) return `há ${diffHour}h`
+  return `há ${Math.floor(diffHour / 24)}d`
 }
 
 function getStatusType(entry: StatusEntry | undefined): 'online' | 'offline' | 'slow' | 'soft404' | 'pending' {
@@ -123,7 +123,7 @@ export default function PageTable({
     return (
       <div className="table-container">
         <div className="empty">
-          Nenhuma pagina corresponde ao filtro selecionado.
+          Nenhuma página corresponde ao filtro selecionado.
         </div>
       </div>
     )
@@ -143,7 +143,7 @@ export default function PageTable({
             <th>Tempo</th>
             <th>Scores</th>
             <th>Checagem</th>
-            <th>Acoes</th>
+            <th>Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -282,7 +282,7 @@ export default function PageTable({
                         onClick={() => onRunAudit(entry)}
                         disabled={runningAudit === pageId || !entry.enabled}
                         className={`btn btn-small btn-icon btn-audit ${runningAudit === pageId ? 'running' : ''}`}
-                        title={apiKeyConfigured ? 'Rodar auditoria' : 'API key nao configurada'}
+                        title={apiKeyConfigured ? 'Rodar auditoria' : 'API key não configurada'}
                       >
                         {runningAudit === pageId ? '...' : <BarChart3 size={14} />}
                       </button>

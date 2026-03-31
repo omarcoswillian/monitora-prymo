@@ -70,7 +70,7 @@ export const STATUS_CONFIG: Record<PageStatus, StatusConfig> = {
     color: '--color-success',
     cssClass: 'online',
     icon: 'CheckCircle2',
-    tooltip: 'Pagina respondendo normalmente',
+    tooltip: 'Página respondendo normalmente',
     severity: 'ok',
   },
   LENTO: {
@@ -88,7 +88,7 @@ export const STATUS_CONFIG: Record<PageStatus, StatusConfig> = {
     color: '--color-error',
     cssClass: 'timeout',
     icon: 'Timer',
-    tooltip: 'Requisicao expirou sem resposta do servidor',
+    tooltip: 'Requisição expirou sem resposta do servidor',
     severity: 'error',
   },
   OFFLINE: {
@@ -97,7 +97,7 @@ export const STATUS_CONFIG: Record<PageStatus, StatusConfig> = {
     color: '--color-error',
     cssClass: 'offline',
     icon: 'XCircle',
-    tooltip: 'Servidor retornou erro HTTP ou nao esta acessivel',
+    tooltip: 'Servidor retornou erro HTTP ou não está acessível',
     severity: 'error',
   },
   BLOQUEADO: {
@@ -115,7 +115,7 @@ export const STATUS_CONFIG: Record<PageStatus, StatusConfig> = {
     color: '--color-warning',
     cssClass: 'audit-pending',
     icon: 'Hourglass',
-    tooltip: 'Auditoria PageSpeed ainda nao foi concluida',
+    tooltip: 'Auditoria PageSpeed ainda não foi concluída',
     severity: 'info',
   },
   AUDIT_FALHOU: {
@@ -134,7 +134,7 @@ export const STATUS_CONFIG: Record<PageStatus, StatusConfig> = {
 export const ERROR_TYPE_LABELS: Record<ErrorType, { label: string; description: string }> = {
   HTTP_404: {
     label: '404',
-    description: 'Pagina nao encontrada (HTTP 404)',
+    description: 'Página não encontrada (HTTP 404)',
   },
   HTTP_500: {
     label: '5xx',
@@ -142,27 +142,27 @@ export const ERROR_TYPE_LABELS: Record<ErrorType, { label: string; description: 
   },
   TIMEOUT: {
     label: 'Timeout',
-    description: 'A requisicao demorou demais e foi cancelada',
+    description: 'A requisição demorou demais e foi cancelada',
   },
   SOFT_404: {
     label: 'Soft 404',
-    description: 'HTTP 200 mas conteudo indica erro (ex: "pagina nao encontrada")',
+    description: 'HTTP 200 mas conteúdo indica erro (ex: "página não encontrada")',
   },
   CONNECTION_ERROR: {
-    label: 'Conexao',
-    description: 'Nao foi possivel conectar ao servidor',
+    label: 'Conexão',
+    description: 'Não foi possível conectar ao servidor',
   },
   WAF_BLOCK: {
     label: 'WAF',
-    description: 'Bloqueado por firewall ou protecao anti-bot',
+    description: 'Bloqueado por firewall ou proteção anti-bot',
   },
   REDIRECT_LOOP: {
     label: 'Redirect',
-    description: 'Redirecionamento excessivo ou para pagina de bloqueio',
+    description: 'Redirecionamento excessivo ou para página de bloqueio',
   },
   CONTENT_MISMATCH: {
-    label: 'Conteudo',
-    description: 'Conteudo esperado nao encontrado na pagina',
+    label: 'Conteúdo',
+    description: 'Conteúdo esperado não encontrado na página',
   },
   SSL_EXPIRING: {
     label: 'SSL',
@@ -187,22 +187,22 @@ export interface EventDisplayConfig {
 }
 
 export const EVENT_DISPLAY: Record<EventType, EventDisplayConfig> = {
-  uptime_check_started:      { label: 'Verificacao iniciada',       icon: 'Play',         color: '--text-tertiary' },
+  uptime_check_started:      { label: 'Verificação iniciada',       icon: 'Play',         color: '--text-tertiary' },
   http_status_received:      { label: 'Resposta HTTP recebida',     icon: 'ArrowDown',    color: '--text-secondary' },
   timeout:                   { label: 'Timeout',                     icon: 'Timer',        color: '--color-error' },
   retry_started:             { label: 'Retry iniciado',             icon: 'RotateCw',     color: '--color-warning' },
-  retry_completed:           { label: 'Retry concluido',            icon: 'CheckCircle2', color: '--color-success' },
+  retry_completed:           { label: 'Retry concluído',            icon: 'CheckCircle2', color: '--color-success' },
   pagespeed_audit_started:   { label: 'Auditoria iniciada',         icon: 'Gauge',        color: '--text-tertiary' },
-  pagespeed_audit_completed: { label: 'Auditoria concluida',        icon: 'CheckCircle2', color: '--color-success' },
+  pagespeed_audit_completed: { label: 'Auditoria concluída',        icon: 'CheckCircle2', color: '--color-success' },
   pagespeed_audit_failed:    { label: 'Auditoria falhou',           icon: 'XCircle',      color: '--color-error' },
-  page_marked_offline:       { label: 'Pagina marcada offline',     icon: 'XCircle',      color: '--color-error' },
-  page_marked_online:        { label: 'Pagina voltou online',       icon: 'CheckCircle2', color: '--color-success' },
+  page_marked_offline:       { label: 'Página marcada offline',     icon: 'XCircle',      color: '--color-error' },
+  page_marked_online:        { label: 'Página voltou online',       icon: 'CheckCircle2', color: '--color-success' },
   block_detected:            { label: 'Bloqueio detectado',         icon: 'ShieldAlert',  color: '--color-error' },
   status_changed:            { label: 'Status alterado',            icon: 'ArrowRight',   color: '--color-warning' },
   incident_created:          { label: 'Incidente criado',           icon: 'AlertTriangle', color: '--color-error' },
   incident_resolved:         { label: 'Incidente resolvido',        icon: 'CheckCircle2', color: '--color-success' },
   cloudflare_fetch_started:  { label: 'Cloudflare fetch iniciado',  icon: 'Cloud',        color: '--text-tertiary' },
-  cloudflare_fetch_completed:{ label: 'Cloudflare fetch concluido', icon: 'CheckCircle2', color: '--color-success' },
+  cloudflare_fetch_completed:{ label: 'Cloudflare fetch concluído', icon: 'CheckCircle2', color: '--color-success' },
   cloudflare_fetch_failed:   { label: 'Cloudflare fetch falhou',    icon: 'XCircle',      color: '--color-error' },
 }
 

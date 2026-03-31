@@ -39,25 +39,25 @@ interface NavGroup {
 const mainNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/', icon: <LayoutDashboard size={20} /> },
   { label: 'Incidentes', href: '/incidents', icon: <AlertTriangle size={20} /> },
-  { label: 'Relatorios', href: '/reports', icon: <FileText size={20} /> },
+  { label: 'Relatórios', href: '/reports', icon: <FileText size={20} /> },
   { label: 'Insights', href: '/insights/ranking', icon: <BarChart3 size={20} /> },
 ]
 
 const gestaoGroup: NavGroup = {
-  label: 'Gestao',
+  label: 'Gestão',
   icon: <Briefcase size={20} />,
   basePath: '/gestao',
   children: [
-    { label: 'Visao Geral', href: '/gestao/visao-geral', icon: <Eye size={16} /> },
+    { label: 'Visão Geral', href: '/gestao/visao-geral', icon: <Eye size={16} /> },
     { label: 'Performance', href: '/gestao/performance', icon: <Activity size={16} /> },
     { label: 'Riscos', href: '/gestao/riscos', icon: <ShieldAlert size={16} /> },
-    { label: 'Evolucao', href: '/gestao/evolucao', icon: <TrendingUp size={16} /> },
-    { label: 'Mes a Mes', href: '/gestao/comparacao', icon: <BarChart3 size={16} /> },
+    { label: 'Evolução', href: '/gestao/evolucao', icon: <TrendingUp size={16} /> },
+    { label: 'Mês a Mês', href: '/gestao/comparacao', icon: <BarChart3 size={16} /> },
   ],
 }
 
 const secondaryNavItems: NavItem[] = [
-  { label: 'Configuracoes', href: '/settings', icon: <Settings size={20} /> },
+  { label: 'Configurações', href: '/settings', icon: <Settings size={20} /> },
 ]
 
 export default function Sidebar() {

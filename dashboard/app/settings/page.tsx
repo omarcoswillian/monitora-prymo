@@ -45,7 +45,7 @@ export default function SettingsPage() {
       const data = await res.json()
       setSettings(data)
     } catch (err) {
-      error('Erro ao carregar configuracoes')
+      error('Erro ao carregar configurações')
       console.error(err)
     } finally {
       setLoading(false)
@@ -69,9 +69,9 @@ export default function SettingsPage() {
       const data = await res.json()
       setSettings(data)
       setHasChanges(false)
-      success('Configuracoes salvas com sucesso')
+      success('Configurações salvas com sucesso')
     } catch (err) {
-      error('Erro ao salvar configuracoes')
+      error('Erro ao salvar configurações')
       console.error(err)
     } finally {
       setSaving(false)
@@ -79,7 +79,7 @@ export default function SettingsPage() {
   }
 
   const handleReset = async () => {
-    if (!confirm('Tem certeza que deseja restaurar as configuracoes padrao?')) return
+    if (!confirm('Tem certeza que deseja restaurar as configurações padrão?')) return
     setSaving(true)
     try {
       const res = await fetch('/api/settings', { method: 'DELETE' })
@@ -87,9 +87,9 @@ export default function SettingsPage() {
       const data = await res.json()
       setSettings(data)
       setHasChanges(false)
-      success('Configuracoes restauradas')
+      success('Configurações restauradas')
     } catch (err) {
-      error('Erro ao restaurar configuracoes')
+      error('Erro ao restaurar configurações')
       console.error(err)
     } finally {
       setSaving(false)
@@ -169,9 +169,9 @@ export default function SettingsPage() {
     try {
       const res = await fetch('/api/reports/generate', { method: 'POST' })
       if (!res.ok) throw new Error('Failed to generate')
-      success('Relatorio sendo gerado...')
+      success('Relatório sendo gerado...')
     } catch (err) {
-      error('Erro ao gerar relatorio')
+      error('Erro ao gerar relatório')
       console.error(err)
     }
   }
@@ -180,7 +180,7 @@ export default function SettingsPage() {
     return (
       <AppShell>
         <div className="container">
-          <div className="loading">Carregando configuracoes...</div>
+          <div className="loading">Carregando configurações...</div>
         </div>
       </AppShell>
     )
@@ -190,7 +190,7 @@ export default function SettingsPage() {
     return (
       <AppShell>
         <div className="container">
-          <div className="empty">Erro ao carregar configuracoes</div>
+          <div className="empty">Erro ao carregar configurações</div>
         </div>
       </AppShell>
     )
@@ -199,12 +199,12 @@ export default function SettingsPage() {
   return (
     <AppShell>
       <div className="container">
-        <Breadcrumbs items={[{ label: 'Configuracoes' }]} />
+        <Breadcrumbs items={[{ label: 'Configurações' }]} />
 
         <header className="header">
           <div className="header-row">
             <div>
-              <h1>Configuracoes</h1>
+              <h1>Configurações</h1>
               <p>Gerencie o comportamento do sistema de monitoramento</p>
             </div>
             <div className="header-actions">
@@ -212,7 +212,7 @@ export default function SettingsPage() {
                 className="btn"
                 onClick={handleReset}
                 disabled={saving}
-                title="Restaurar configuracoes padrao"
+                title="Restaurar configurações padrão"
               >
                 <RotateCcw size={16} />
                 <span>Restaurar</span>
@@ -232,12 +232,12 @@ export default function SettingsPage() {
         {hasChanges && (
           <div className="settings-warning">
             <AlertTriangle size={16} />
-            <span>Voce tem alteracoes nao salvas. As mudancas entrarao em vigor no proximo ciclo de execucao.</span>
+            <span>Você tem alterações não salvas. As mudanças entrarão em vigor no próximo ciclo de execução.</span>
           </div>
         )}
 
         <div className="settings-sections">
-          {/* Secao 1: Monitoramento */}
+          {/* Seção 1: Monitoramento */}
           <section className="settings-section">
             <div className="settings-section-header">
               <div className="settings-section-icon">
@@ -245,15 +245,15 @@ export default function SettingsPage() {
               </div>
               <div>
                 <h2>Monitoramento</h2>
-                <p>Configuracoes de uptime e deteccao de incidentes</p>
+                <p>Configurações de uptime e detecção de incidentes</p>
               </div>
             </div>
 
             <div className="settings-section-content">
               <div className="settings-group">
                 <label className="settings-label">
-                  Frequencia de verificacao de uptime
-                  <span className="settings-hint">Quantas vezes por dia o sistema verifica cada pagina</span>
+                  Frequência de verificação de uptime
+                  <span className="settings-hint">Quantas vezes por dia o sistema verifica cada página</span>
                 </label>
                 <div className="settings-radio-group">
                   {(['1x', '2x', '4x'] as const).map((opt) => (
@@ -272,8 +272,8 @@ export default function SettingsPage() {
 
               <div className="settings-group">
                 <label className="settings-label">
-                  Timeout da requisicao HTTP
-                  <span className="settings-hint">Tempo maximo de espera por resposta do servidor</span>
+                  Timeout da requisição HTTP
+                  <span className="settings-hint">Tempo máximo de espera por resposta do servidor</span>
                 </label>
                 <div className="settings-radio-group">
                   {([5000, 8000, 10000] as const).map((opt) => (
@@ -293,7 +293,7 @@ export default function SettingsPage() {
               <div className="settings-group">
                 <label className="settings-label">
                   Limite para status &quot;Lento&quot;
-                  <span className="settings-hint">Paginas com tempo de resposta acima desse valor serao marcadas como lentas</span>
+                  <span className="settings-hint">Páginas com tempo de resposta acima desse valor serão marcadas como lentas</span>
                 </label>
                 <div className="settings-input-group">
                   <input
@@ -312,8 +312,8 @@ export default function SettingsPage() {
               <div className="settings-group">
                 <label className="settings-toggle-label">
                   <div className="settings-toggle-info">
-                    <span className="settings-toggle-title">Deteccao de Soft 404</span>
-                    <span className="settings-hint">Identifica paginas que retornam 200 mas exibem conteudo de erro</span>
+                    <span className="settings-toggle-title">Detecção de Soft 404</span>
+                    <span className="settings-hint">Identifica páginas que retornam 200 mas exibem conteúdo de erro</span>
                   </div>
                   <label className="settings-toggle">
                     <input
@@ -329,7 +329,7 @@ export default function SettingsPage() {
               <div className="settings-group">
                 <label className="settings-label">
                   Erros consecutivos para abrir incidente
-                  <span className="settings-hint">Numero de falhas seguidas necessarias para criar um incidente</span>
+                  <span className="settings-hint">Número de falhas seguidas necessárias para criar um incidente</span>
                 </label>
                 <div className="settings-radio-group">
                   {([1, 2, 3] as const).map((opt) => (
@@ -350,7 +350,7 @@ export default function SettingsPage() {
                 <label className="settings-toggle-label">
                   <div className="settings-toggle-info">
                     <span className="settings-toggle-title">Resolver incidente automaticamente</span>
-                    <span className="settings-hint">Fecha o incidente quando a pagina voltar ao status OK</span>
+                    <span className="settings-hint">Fecha o incidente quando a página volta ao status OK</span>
                   </div>
                   <label className="settings-toggle">
                     <input
@@ -365,7 +365,7 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          {/* Secao 2: Auditoria */}
+          {/* Seção 2: Auditoria */}
           <section className="settings-section">
             <div className="settings-section-header">
               <div className="settings-section-icon settings-section-icon-audit">
@@ -373,20 +373,20 @@ export default function SettingsPage() {
               </div>
               <div>
                 <h2>Auditoria (PageSpeed / Lighthouse)</h2>
-                <p>Configuracoes da integracao com PageSpeed Insights</p>
+                <p>Configurações da integração com PageSpeed Insights</p>
               </div>
             </div>
 
             <div className="settings-section-content">
               <div className="settings-info-box">
                 <Info size={16} />
-                <span>A API do PageSpeed tem limite de requisicoes. Auditorias frequentes em muitas paginas podem atingir o limite diario.</span>
+                <span>A API do PageSpeed tem limite de requisições. Auditorias frequentes em muitas páginas podem atingir o limite diário.</span>
               </div>
 
               <div className="settings-group">
                 <label className="settings-label">
-                  Frequencia de auditoria
-                  <span className="settings-hint">Quando as auditorias serao executadas</span>
+                  Frequência de auditoria
+                  <span className="settings-hint">Quando as auditorias serão executadas</span>
                 </label>
                 <div className="settings-radio-group">
                   <label className="settings-radio">
@@ -405,7 +405,7 @@ export default function SettingsPage() {
                       checked={settings.audit.frequency === 'daily'}
                       onChange={() => updateAudit('frequency', 'daily')}
                     />
-                    <span>Diario</span>
+                    <span>Diário</span>
                   </label>
                 </div>
               </div>
@@ -413,8 +413,8 @@ export default function SettingsPage() {
               {settings.audit.frequency === 'daily' && (
                 <div className="settings-group">
                   <label className="settings-label">
-                    Horario da auditoria
-                    <span className="settings-hint">Horario em que a auditoria sera executada (timezone: {settings.account.timezone})</span>
+                    Horário da auditoria
+                    <span className="settings-hint">Horário em que a auditoria será executada (timezone: {settings.account.timezone})</span>
                   </label>
                   <div className="settings-input-group">
                     <Clock size={16} className="settings-input-icon" />
@@ -430,7 +430,7 @@ export default function SettingsPage() {
 
               <div className="settings-group">
                 <label className="settings-label">
-                  Tipo de analise
+                  Tipo de análise
                   <span className="settings-hint">Dispositivo simulado para a auditoria</span>
                 </label>
                 <div className="settings-radio-group">
@@ -466,8 +466,8 @@ export default function SettingsPage() {
 
               <div className="settings-group">
                 <label className="settings-label">
-                  Metricas ativas
-                  <span className="settings-hint">Categorias do Lighthouse que serao analisadas</span>
+                  Métricas ativas
+                  <span className="settings-hint">Categorias do Lighthouse que serão analisadas</span>
                 </label>
                 <div className="settings-checkbox-group">
                   <label className="settings-checkbox">
@@ -509,7 +509,7 @@ export default function SettingsPage() {
                 <label className="settings-toggle-label">
                   <div className="settings-toggle-info">
                     <span className="settings-toggle-title">Pausar auditorias se API falhar</span>
-                    <span className="settings-hint">Suspende auditorias automaticas se a API retornar erros</span>
+                    <span className="settings-hint">Suspende auditorias automáticas se a API retornar erros</span>
                   </div>
                   <label className="settings-toggle">
                     <input
@@ -524,15 +524,15 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          {/* Secao 3: Relatorios com IA */}
+          {/* Seção 3: Relatórios com IA */}
           <section className="settings-section">
             <div className="settings-section-header">
               <div className="settings-section-icon settings-section-icon-reports">
                 <Bot size={20} />
               </div>
               <div>
-                <h2>Relatorios com IA</h2>
-                <p>Configuracoes de geracao automatica de relatorios semanais</p>
+                <h2>Relatórios com IA</h2>
+                <p>Configurações de geração automática de relatórios semanais</p>
               </div>
             </div>
 
@@ -540,8 +540,8 @@ export default function SettingsPage() {
               <div className="settings-group">
                 <label className="settings-toggle-label">
                   <div className="settings-toggle-info">
-                    <span className="settings-toggle-title">Ativar relatorios automaticos</span>
-                    <span className="settings-hint">Gera relatorios semanais automaticamente</span>
+                    <span className="settings-toggle-title">Ativar relatórios automáticos</span>
+                    <span className="settings-hint">Gera relatórios semanais automaticamente</span>
                   </div>
                   <label className="settings-toggle">
                     <input
@@ -560,7 +560,7 @@ export default function SettingsPage() {
                     <div className="settings-group settings-group-half">
                       <label className="settings-label">
                         Dia da semana
-                        <span className="settings-hint">Dia em que o relatorio sera gerado</span>
+                        <span className="settings-hint">Dia em que o relatório será gerado</span>
                       </label>
                       <select
                         className="input settings-select"
@@ -569,18 +569,18 @@ export default function SettingsPage() {
                       >
                         <option value={0}>Domingo</option>
                         <option value={1}>Segunda-feira</option>
-                        <option value={2}>Terca-feira</option>
+                        <option value={2}>Terça-feira</option>
                         <option value={3}>Quarta-feira</option>
                         <option value={4}>Quinta-feira</option>
                         <option value={5}>Sexta-feira</option>
-                        <option value={6}>Sabado</option>
+                        <option value={6}>Sábado</option>
                       </select>
                     </div>
 
                     <div className="settings-group settings-group-half">
                       <label className="settings-label">
-                        Horario de geracao
-                        <span className="settings-hint">Horario de geracao do relatorio</span>
+                        Horário de geração
+                        <span className="settings-hint">Horário de geração do relatório</span>
                       </label>
                       <div className="settings-input-group">
                         <Clock size={16} className="settings-input-icon" />
@@ -596,8 +596,8 @@ export default function SettingsPage() {
 
                   <div className="settings-group">
                     <label className="settings-label">
-                      Escopo do relatorio
-                      <span className="settings-hint">Nivel de agrupamento dos dados</span>
+                      Escopo do relatório
+                      <span className="settings-hint">Nível de agrupamento dos dados</span>
                     </label>
                     <div className="settings-radio-group">
                       <label className="settings-radio">
@@ -623,8 +623,8 @@ export default function SettingsPage() {
 
                   <div className="settings-group">
                     <label className="settings-label">
-                      Conteudo do relatorio
-                      <span className="settings-hint">Secoes incluidas no relatorio</span>
+                      Conteúdo do relatório
+                      <span className="settings-hint">Seções incluídas no relatório</span>
                     </label>
                     <div className="settings-checkbox-group">
                       <label className="settings-checkbox">
@@ -649,7 +649,7 @@ export default function SettingsPage() {
                           checked={settings.reports.content.pageSpeedAvg}
                           onChange={(e) => updateReportContent('pageSpeedAvg', e.target.checked)}
                         />
-                        <span>PageSpeed (media 7 dias)</span>
+                        <span>PageSpeed (média 7 dias)</span>
                       </label>
                       <label className="settings-checkbox">
                         <input
@@ -657,14 +657,14 @@ export default function SettingsPage() {
                           checked={settings.reports.content.weekComparison}
                           onChange={(e) => updateReportContent('weekComparison', e.target.checked)}
                         />
-                        <span>Comparacao com semana anterior</span>
+                        <span>Comparação com semana anterior</span>
                       </label>
                     </div>
                   </div>
 
                   <div className="settings-group">
                     <label className="settings-label">
-                      Tom do relatorio
+                      Tom do relatório
                       <span className="settings-hint">Estilo de linguagem utilizado pela IA</span>
                     </label>
                     <div className="settings-radio-group">
@@ -684,7 +684,7 @@ export default function SettingsPage() {
                           checked={settings.reports.tone === 'technical'}
                           onChange={() => updateReports('tone', 'technical')}
                         />
-                        <span>Tecnico</span>
+                        <span>Técnico</span>
                       </label>
                       <label className="settings-radio">
                         <input
@@ -704,18 +704,18 @@ export default function SettingsPage() {
                 <div className="settings-action-info">
                   <FileText size={18} />
                   <div>
-                    <strong>Gerar relatorio agora</strong>
-                    <span>Gera um relatorio manual com os dados atuais</span>
+                    <strong>Gerar relatório agora</strong>
+                    <span>Gera um relatório manual com os dados atuais</span>
                   </div>
                 </div>
                 <button className="btn" onClick={handleGenerateReport}>
-                  Gerar relatorio
+                  Gerar relatório
                 </button>
               </div>
             </div>
           </section>
 
-          {/* Secao 4: Cloudflare */}
+          {/* Seção 4: Cloudflare */}
           <section className="settings-section">
             <div className="settings-section-header">
               <div className="settings-section-icon" style={{ background: 'rgba(249, 115, 22, 0.15)', color: '#f97316' }}>
@@ -731,7 +731,7 @@ export default function SettingsPage() {
               <div className="settings-group">
                 <label className="settings-label">
                   Coleta de dados
-                  <span className="settings-hint">Habilitar coleta automatica de metricas da Cloudflare</span>
+                  <span className="settings-hint">Habilitar coleta automática de métricas da Cloudflare</span>
                 </label>
                 <div className="settings-row">
                   {(['disabled', '30min', '1h'] as const).map((freq) => (
@@ -755,8 +755,8 @@ export default function SettingsPage() {
                 <div className="settings-info-box">
                   <Info size={16} />
                   <div>
-                    <strong>API Token necessario</strong>
-                    <p>Configure a variavel de ambiente CLOUDFLARE_API_TOKEN com um token com permissao Analytics Read.</p>
+                    <strong>API Token necessário</strong>
+                    <p>Configure a variável de ambiente CLOUDFLARE_API_TOKEN com um token com permissão Analytics Read.</p>
                   </div>
                 </div>
               )}
@@ -771,23 +771,23 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          {/* Secao 5: Conta / Seguranca */}
+          {/* Seção 5: Conta / Segurança */}
           <section className="settings-section">
             <div className="settings-section-header">
               <div className="settings-section-icon settings-section-icon-account">
                 <Shield size={20} />
               </div>
               <div>
-                <h2>Conta / Seguranca</h2>
-                <p>Configuracoes da organizacao e autenticacao</p>
+                <h2>Conta / Segurança</h2>
+                <p>Configurações da organização e autenticação</p>
               </div>
             </div>
 
             <div className="settings-section-content">
               <div className="settings-group">
                 <label className="settings-label">
-                  Nome da organizacao
-                  <span className="settings-hint">Nome exibido nos relatorios e interface</span>
+                  Nome da organização
+                  <span className="settings-hint">Nome exibido nos relatórios e interface</span>
                 </label>
                 <div className="settings-input-group">
                   <Building2 size={16} className="settings-input-icon" />
@@ -796,7 +796,7 @@ export default function SettingsPage() {
                     className="input"
                     value={settings.account.organizationName}
                     onChange={(e) => updateAccount('organizationName', e.target.value)}
-                    placeholder="Nome da organizacao"
+                    placeholder="Nome da organização"
                   />
                 </div>
               </div>
@@ -804,7 +804,7 @@ export default function SettingsPage() {
               <div className="settings-group">
                 <label className="settings-label">
                   Timezone
-                  <span className="settings-hint">Fuso horario utilizado para agendamentos</span>
+                  <span className="settings-hint">Fuso horário utilizado para agendamentos</span>
                 </label>
                 <select
                   className="input settings-select"
@@ -828,7 +828,7 @@ export default function SettingsPage() {
                 </label>
                 <div className="settings-readonly">
                   <span className={`settings-env-badge settings-env-${settings.account.environment}`}>
-                    {settings.account.environment === 'production' ? 'Producao' : 'Staging'}
+                    {settings.account.environment === 'production' ? 'Produção' : 'Staging'}
                   </span>
                 </div>
               </div>
@@ -836,7 +836,7 @@ export default function SettingsPage() {
               <div className="settings-group">
                 <label className="settings-toggle-label">
                   <div className="settings-toggle-info">
-                    <span className="settings-toggle-title">Autenticacao obrigatoria</span>
+                    <span className="settings-toggle-title">Autenticação obrigatória</span>
                     <span className="settings-hint">Exige login para acessar o dashboard</span>
                   </div>
                   <label className="settings-toggle">
@@ -854,28 +854,28 @@ export default function SettingsPage() {
                 <div className="settings-action-info">
                   <LogOut size={18} />
                   <div>
-                    <strong>Encerrar todas as sessoes</strong>
-                    <span>Desconecta todos os usuarios logados</span>
+                    <strong>Encerrar todas as sessões</strong>
+                    <span>Desconecta todos os usuários logados</span>
                   </div>
                 </div>
                 <button
                   className="btn btn-danger"
                   onClick={() => {
-                    if (confirm('Tem certeza que deseja encerrar todas as sessoes?')) {
-                      success('Todas as sessoes foram encerradas')
+                    if (confirm('Tem certeza que deseja encerrar todas as sessões?')) {
+                      success('Todas as sessões foram encerradas')
                     }
                   }}
                 >
-                  Encerrar sessoes
+                  Encerrar sessões
                 </button>
               </div>
 
               <div className="settings-info-box">
                 <Info size={16} />
                 <div>
-                  <strong>Provedor de autenticacao:</strong> Email/Senha
+                  <strong>Provedor de autenticação:</strong> Email/Senha
                   <br />
-                  <span>Para resetar sua senha, faca logout e clique em &quot;Esqueci minha senha&quot; na tela de login.</span>
+                  <span>Para resetar sua senha, faça logout e clique em &quot;Esqueci minha senha&quot; na tela de login.</span>
                 </div>
               </div>
             </div>

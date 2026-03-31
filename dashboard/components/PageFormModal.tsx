@@ -60,7 +60,7 @@ export default function PageFormModal({
           setPageType(page.pageType || 'site')
           setUrl(page.url || '')
         })
-        .catch(() => setErrors(['Erro ao carregar pagina']))
+        .catch(() => setErrors(['Erro ao carregar página']))
         .finally(() => setLoading(false))
     } else if (isOpen && mode === 'create') {
       setClientName('')
@@ -131,9 +131,9 @@ export default function PageFormModal({
         // Show credentials if new client was created
         if (result.credentials) {
           setCredentials(result.credentials)
-          setSuccessMsg(`Pagina criada! Cliente "${result.client.name}" criado com acesso automatico.`)
+          setSuccessMsg(`Página criada! Cliente "${result.client.name}" criado com acesso automático.`)
         } else {
-          setSuccessMsg(`Pagina "${result.page.name}" criada com sucesso!`)
+          setSuccessMsg(`Página "${result.page.name}" criada com sucesso!`)
           // Auto-close after brief delay if no credentials to show
           setTimeout(() => {
             onSuccess({ id: result.page.id, url: result.page.url, enabled: true })
@@ -170,7 +170,7 @@ export default function PageFormModal({
     onClose()
   }
 
-  const title = mode === 'create' ? 'Adicionar Pagina' : 'Editar Pagina'
+  const title = mode === 'create' ? 'Adicionar Página' : 'Editar Página'
 
   return (
     <Modal isOpen={isOpen} onClose={credentials ? handleCloseWithRefresh : onClose} title={title}>
@@ -220,11 +220,11 @@ export default function PageFormModal({
                   value={clientName}
                   onChange={e => setClientName(e.target.value)}
                   className="input"
-                  placeholder="Nome do cliente (ex: Execucao Digital)"
+                  placeholder="Nome do cliente (ex: Execução Digital)"
                   required
                 />
                 {mode === 'create' && (
-                  <span className="form-hint">Se o cliente nao existir, sera criado com login automatico.</span>
+                  <span className="form-hint">Se o cliente não existir, será criado com login automático.</span>
                 )}
               </div>
 
@@ -251,11 +251,11 @@ export default function PageFormModal({
                   className="input"
                   placeholder="Nome do produto (ex: Curso de Marketing)"
                 />
-                <span className="form-hint">Opcional. Se vazio, sera agrupado como "Geral".</span>
+                <span className="form-hint">Opcional. Se vazio, será agrupado como "Geral".</span>
               </div>
 
               <div className="form-group">
-                <label htmlFor="pageName">Nome da Pagina</label>
+                <label htmlFor="pageName">Nome da Página</label>
                 <input
                   type="text"
                   id="pageName"
@@ -268,7 +268,7 @@ export default function PageFormModal({
               </div>
 
               <div className="form-group">
-                <label htmlFor="pageType">Tipo de Pagina</label>
+                <label htmlFor="pageType">Tipo de Página</label>
                 <select
                   id="pageType"
                   value={pageType}
@@ -276,9 +276,9 @@ export default function PageFormModal({
                   className="input"
                 >
                   <option value="site">Site / Institucional</option>
-                  <option value="vendas">Pagina de Vendas</option>
-                  <option value="captura">Pagina de Captura</option>
-                  <option value="obrigado">Pagina de Obrigado</option>
+                  <option value="vendas">Página de Vendas</option>
+                  <option value="captura">Página de Captura</option>
+                  <option value="obrigado">Página de Obrigado</option>
                   <option value="blog">Blog</option>
                   <option value="checkout">Checkout</option>
                 </select>
@@ -302,7 +302,7 @@ export default function PageFormModal({
                   Cancelar
                 </button>
                 <button type="submit" disabled={saving} className="btn btn-primary">
-                  {saving ? 'Criando...' : mode === 'edit' ? 'Salvar' : 'Criar Pagina'}
+                  {saving ? 'Criando...' : mode === 'edit' ? 'Salvar' : 'Criar Página'}
                 </button>
               </div>
             </form>

@@ -70,9 +70,9 @@ function HealthBadge({ health }: { health: string | null }) {
   if (!health) return <span className="badge pending">Sem dados</span>
 
   const config: Record<string, { label: string; className: string; icon: typeof CheckCircle2 }> = {
-    healthy: { label: 'Saudavel', className: 'badge online', icon: CheckCircle2 },
-    warning: { label: 'Atencao', className: 'badge slow', icon: AlertTriangle },
-    critical: { label: 'Critico', className: 'badge offline', icon: AlertTriangle },
+    healthy: { label: 'Saudável', className: 'badge online', icon: CheckCircle2 },
+    warning: { label: 'Atenção', className: 'badge slow', icon: AlertTriangle },
+    critical: { label: 'Crítico', className: 'badge offline', icon: AlertTriangle },
   }
 
   const c = config[health] || config.healthy
@@ -109,7 +109,7 @@ export default function CloudflareMetrics({ clientId }: CloudflareMetricsProps) 
       <div className="audit-metrics-section">
         <h2 className="section-title">
           <Cloud size={16} style={{ display: 'inline', marginRight: '0.5rem' }} />
-          Cloudflare - Saude do Servidor
+          Cloudflare - Saúde do Servidor
         </h2>
         <div className="audit-empty">Carregando...</div>
       </div>
@@ -127,9 +127,9 @@ export default function CloudflareMetrics({ clientId }: CloudflareMetricsProps) 
       <div className="audit-metrics-section">
         <h2 className="section-title">
           <Cloud size={16} style={{ display: 'inline', marginRight: '0.5rem' }} />
-          Cloudflare - Saude do Servidor
+          Cloudflare - Saúde do Servidor
         </h2>
-        <div className="audit-empty">Nenhum dado coletado ainda. Aguarde o proximo ciclo de coleta.</div>
+        <div className="audit-empty">Nenhum dado coletado ainda. Aguarde o próximo ciclo de coleta.</div>
       </div>
     )
   }
@@ -137,7 +137,7 @@ export default function CloudflareMetrics({ clientId }: CloudflareMetricsProps) 
   const chartData = history.map(h => ({
     time: new Date(h.time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
     Cached: h.requestsCached,
-    'Nao Cached': h.requestsUncached,
+    'Não Cached': h.requestsUncached,
     'Erro 5xx (%)': h.errorRate5xx,
     'Erro 4xx (%)': h.errorRate4xx,
   }))
@@ -147,7 +147,7 @@ export default function CloudflareMetrics({ clientId }: CloudflareMetricsProps) 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
         <h2 className="section-title" style={{ margin: 0 }}>
           <Cloud size={16} style={{ display: 'inline', marginRight: '0.5rem' }} />
-          Cloudflare - Saude do Servidor
+          Cloudflare - Saúde do Servidor
         </h2>
         <div style={{ display: 'flex', gap: '0.25rem' }}>
           <button
@@ -169,7 +169,7 @@ export default function CloudflareMetrics({ clientId }: CloudflareMetricsProps) 
       <div className="cards" style={{ marginBottom: '1rem' }}>
         <div className="card">
           <div className="card-icon"><Activity size={20} /></div>
-          <div className="card-label">Saude do Servidor</div>
+          <div className="card-label">Saúde do Servidor</div>
           <div className="card-value"><HealthBadge health={health} /></div>
         </div>
         <div className="card">
@@ -198,7 +198,7 @@ export default function CloudflareMetrics({ clientId }: CloudflareMetricsProps) 
         </div>
         <div className="card">
           <div className="card-icon"><Shield size={20} /></div>
-          <div className="card-label">Ameacas Bloqueadas</div>
+          <div className="card-label">Ameaças Bloqueadas</div>
           <div className="card-value">{formatNumber(metrics.threatsTotal)}</div>
         </div>
       </div>
@@ -224,7 +224,7 @@ export default function CloudflareMetrics({ clientId }: CloudflareMetricsProps) 
                   />
                   <Legend />
                   <Area type="monotone" dataKey="Cached" stackId="1" stroke="#22c55e" fill="#22c55e" fillOpacity={0.6} />
-                  <Area type="monotone" dataKey="Nao Cached" stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.6} />
+                  <Area type="monotone" dataKey="Não Cached" stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.6} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>

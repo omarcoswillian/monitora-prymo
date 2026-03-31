@@ -380,7 +380,7 @@ export default function PageDetailPage() {
 
   const handleRunAudit = async () => {
     if (!page || !audits.apiKeyConfigured) {
-      alert('API key do PageSpeed nao configurada. Adicione PAGESPEED_API_KEY ao .env')
+      alert('API key do PageSpeed não configurada. Adicione PAGESPEED_API_KEY ao .env')
       return
     }
 
@@ -415,9 +415,9 @@ export default function PageDetailPage() {
     return (
       <AppShell>
         <div className="container">
-          <Breadcrumbs items={[{ label: 'Pagina nao encontrada' }]} />
+          <Breadcrumbs items={[{ label: 'Página não encontrada' }]} />
           <div className="empty">
-            Pagina nao encontrada.
+            Página não encontrada.
           </div>
           <Link href="/" className="btn" style={{ marginTop: '1rem', display: 'inline-block' }}>
             Voltar para Home
@@ -456,7 +456,7 @@ export default function PageDetailPage() {
                 onClick={handleRunAudit}
                 disabled={runningAudit || !page.enabled}
                 className={`btn ${runningAudit ? 'btn-disabled' : ''}`}
-                title={audits.apiKeyConfigured ? 'Rodar auditoria' : 'API key nao configurada'}
+                title={audits.apiKeyConfigured ? 'Rodar auditoria' : 'API key não configurada'}
               >
                 <BarChart3 size={16} />
                 {runningAudit ? 'Executando...' : 'Rodar Audit'}
@@ -493,7 +493,7 @@ export default function PageDetailPage() {
             <div className={`card ${page.sslStatus === 'valid' ? 'card-highlight-ok' : page.sslStatus === 'expiring_soon' ? 'card-highlight-warning' : 'card-highlight-danger'}`}>
               <div className="card-label">Certificado SSL</div>
               <div className={`card-value ${page.sslStatus === 'valid' ? 'online' : page.sslStatus === 'expiring_soon' ? 'slow' : 'offline'}`}>
-                {page.sslStatus === 'valid' ? 'Valido' : page.sslStatus === 'expiring_soon' ? 'Expirando' : page.sslStatus === 'expired' ? 'Expirado' : 'Erro'}
+                {page.sslStatus === 'valid' ? 'Válido' : page.sslStatus === 'expiring_soon' ? 'Expirando' : page.sslStatus === 'expired' ? 'Expirado' : 'Erro'}
               </div>
               {page.sslExpiresAt && (
                 <div className="form-hint">
@@ -504,7 +504,7 @@ export default function PageDetailPage() {
           )}
           {page.contentRules && page.contentRules.length > 0 && (
             <div className="card">
-              <div className="card-label">Regras de Conteudo</div>
+              <div className="card-label">Regras de Conteúdo</div>
               <div className="card-value">{page.contentRules.length}</div>
               <div className="form-hint">texto(s) monitorado(s)</div>
             </div>
@@ -556,7 +556,7 @@ export default function PageDetailPage() {
           {/* Web Vitals Metrics */}
           {webVitals && (webVitals.fcp !== null || webVitals.lcp !== null || webVitals.tbt !== null || webVitals.cls !== null || webVitals.speedIndex !== null) && (
             <div className="web-vitals-section">
-              <h3 className="chart-title" style={{ marginBottom: '0.75rem' }}>Metricas</h3>
+              <h3 className="chart-title" style={{ marginBottom: '0.75rem' }}>Métricas</h3>
               <div className="web-vitals-grid">
                 {(['fcp', 'lcp', 'tbt', 'cls', 'speedIndex'] as const).map((metric) => {
                   const value = webVitals[metric]
@@ -592,7 +592,7 @@ export default function PageDetailPage() {
           {auditHistory.length > 1 && (
             <div className="audit-history-section">
               <div className="audit-history-header">
-                <h3 className="chart-title">Historico de Scores</h3>
+                <h3 className="chart-title">Histórico de Scores</h3>
                 <div className="chart-toggle">
                   <button
                     className={`toggle-btn ${activeScoreChart === 'performance' ? 'active' : ''}`}
@@ -704,7 +704,7 @@ export default function PageDetailPage() {
                   {incident.duration !== null && (
                     <span className="incident-duration">
                       <Clock size={12} />
-                      Duracao: {formatDuration(incident.duration)}
+                      Duração: {formatDuration(incident.duration)}
                     </span>
                   )}
                   {incident.error && !incident.probableCause && (
@@ -722,7 +722,7 @@ export default function PageDetailPage() {
 
       {/* Page Info */}
       <div className="page-info-section">
-        <h2 className="section-title">Configuracao</h2>
+        <h2 className="section-title">Configuração</h2>
         <div className="page-info-grid">
           <div className="page-info-item">
             <span className="page-info-label">Intervalo</span>
