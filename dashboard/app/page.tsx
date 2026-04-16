@@ -30,6 +30,7 @@ import {
   Package,
   ChevronDown,
   ChevronRight,
+  Search,
 } from "lucide-react";
 import FiltersBar from "@/components/FiltersBar";
 import FilterChip from "@/components/FilterChip";
@@ -244,6 +245,7 @@ export default function Dashboard() {
   const [slowThreshold, setSlowThreshold] = useState(DEFAULT_SLOW_THRESHOLD);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [feedLoading, setFeedLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -451,8 +453,18 @@ export default function Dashboard() {
     if (tableSpecialistFilter) result = result.filter((d) => d.specialist === tableSpecialistFilter);
     if (tableProductFilter) result = result.filter((d) => d.product === tableProductFilter);
     if (tableTypeFilter) result = result.filter((d) => (d.pageType || 'site') === tableTypeFilter);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((d) =>
+        d.name.toLowerCase().includes(q) ||
+        d.url.toLowerCase().includes(q) ||
+        (d.client && d.client.toLowerCase().includes(q)) ||
+        (d.specialist && d.specialist.toLowerCase().includes(q)) ||
+        (d.product && d.product.toLowerCase().includes(q))
+      );
+    }
     return result;
-  }, [mergedData, tableClientFilter, tableSpecialistFilter, tableProductFilter, tableTypeFilter]);
+  }, [mergedData, tableClientFilter, tableSpecialistFilter, tableProductFilter, tableTypeFilter, searchQuery]);
 
   const counts = useMemo(() => {
     const enabledWithStatus = clientFiltered
@@ -820,16 +832,44 @@ export default function Dashboard() {
   return (
     <AppShell>
       <Topbar
-        searchPlaceholder="Pesquisar páginas..."
+        searchPlaceholder="Pesquisar páginas, URLs, clientes..."
+        onSearch={setSearchQuery}
       />
       <div className="container">
-        <header className="header">
-          <div className="header-row">
-            <div>
-              <h1>Dashboard</h1>
+        <div className="dashboard-header">
+          <h1>Dashboard</h1>
+          {!loading && (
+            <div className="dashboard-header-stats">
+              <div className="dashboard-header-stat">
+                <span className="stat-dot stat-dot-success" />
+                <strong>{counts.online}</strong> online
+              </div>
+              {counts.offline > 0 && (
+                <div className="dashboard-header-stat">
+                  <span className="stat-dot stat-dot-error" />
+                  <strong>{counts.offline}</strong> offline
+                </div>
+              )}
+              {counts.slow > 0 && (
+                <div className="dashboard-header-stat">
+                  <span className="stat-dot stat-dot-warning" />
+                  <strong>{counts.slow}</strong> lento
+                </div>
+              )}
+              <div className="dashboard-header-stat">
+                <Globe size={14} />
+                <strong>{counts.total}</strong> páginas
+              </div>
             </div>
+          )}
+        </div>
+
+        {searchQuery.trim() && (
+          <div className="search-results-banner">
+            <Search size={14} />
+            <span><strong>{clientFiltered.length}</strong> resultado(s) para &quot;{searchQuery}&quot;</span>
           </div>
-        </header>
+        )}
 
         {/* Client Greeting */}
         {isClient && clients.length > 0 && (
@@ -868,8 +908,13 @@ export default function Dashboard() {
         />
 
         {/* Summary Cards */}
+        <div className="dashboard-section-title">
+          <Activity size={14} />
+          Status em Tempo Real
+        </div>
         <div className="cards">
           <div className="card">
+            <div className="card-status-indicator" />
             <div className="card-icon">
               <Globe size={20} />
             </div>
@@ -884,27 +929,24 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-          <div
-            className={`card ${counts.online > 0 ? "card-highlight-ok" : ""}`}
-          >
+          <div className={`card ${counts.online > 0 ? "card-highlight-ok" : ""}`}>
+            <div className="card-status-indicator" />
             <div className="card-icon">
               <CheckCircle2 size={20} />
             </div>
             <div className="card-label">Online</div>
             <div className="card-value online">{counts.online}</div>
           </div>
-          <div
-            className={`card ${counts.offline > 0 ? "card-highlight-danger" : ""}`}
-          >
+          <div className={`card ${counts.offline > 0 ? "card-highlight-danger" : ""}`}>
+            <div className="card-status-indicator" />
             <div className="card-icon">
               <XCircle size={20} />
             </div>
             <div className="card-label">Offline</div>
             <div className="card-value offline">{counts.offline}</div>
           </div>
-          <div
-            className={`card ${counts.slow > 0 ? "card-highlight-warning" : ""}`}
-          >
+          <div className={`card ${counts.slow > 0 ? "card-highlight-warning" : ""}`}>
+            <div className="card-status-indicator" />
             <div className="card-icon">
               <Clock size={20} />
             </div>
@@ -920,18 +962,16 @@ export default function Dashboard() {
             )}
             <div className="card-sla">Meta: &lt;{SLA_TARGETS.responseTime}ms</div>
           </div>
-          <div
-            className={`card ${counts.soft404 > 0 ? "card-highlight-danger" : ""}`}
-          >
+          <div className={`card ${counts.soft404 > 0 ? "card-highlight-danger" : ""}`}>
+            <div className="card-status-indicator" />
             <div className="card-icon">
               <AlertTriangle size={20} />
             </div>
             <div className="card-label">Soft 404</div>
             <div className="card-value soft404">{counts.soft404}</div>
           </div>
-          <div
-            className={`card ${counts.timeout > 0 ? "card-highlight-danger" : ""}`}
-          >
+          <div className={`card ${counts.timeout > 0 ? "card-highlight-danger" : ""}`}>
+            <div className="card-status-indicator" />
             <div className="card-icon">
               <Timer size={20} />
             </div>
@@ -939,9 +979,8 @@ export default function Dashboard() {
             <div className="card-value offline">{counts.timeout}</div>
             <div className="card-sla">Limite: &le;{SLA_TARGETS.maxTimeoutsPerDay}/dia</div>
           </div>
-          <div
-            className={`card ${counts.blocked > 0 ? "card-highlight-danger" : ""}`}
-          >
+          <div className={`card ${counts.blocked > 0 ? "card-highlight-danger" : ""}`}>
+            <div className="card-status-indicator" />
             <div className="card-icon">
               <ShieldAlert size={20} />
             </div>
@@ -959,12 +998,20 @@ export default function Dashboard() {
         )}
 
         {/* Audit Metrics */}
+        <div className="dashboard-section-title">
+          <BarChart3 size={14} />
+          Auditoria (PageSpeed) - Média 7 Dias
+        </div>
         <AuditMetrics
           averages={audits.averages}
           apiKeyConfigured={audits.apiKeyConfigured}
         />
 
         {/* Charts */}
+        <div className="dashboard-section-title">
+          <Activity size={14} />
+          Desempenho (24h) e Uptime (7 Dias)
+        </div>
         <div className="charts-row">
           <ResponseTimeChart data={history.responseTimeAvg} slaResponseTime={SLA_TARGETS.responseTime} />
           <UptimeChart data={history.uptimeDaily} slaUptime={SLA_TARGETS.uptime} />
@@ -973,7 +1020,15 @@ export default function Dashboard() {
         {/* Recent Feed */}
         <RecentFeed items={feed} loading={feedLoading} />
 
-        {/* Filters Row */}
+        {/* Pages Section */}
+        <div className="pages-section-header">
+          <h2>
+            <Globe size={16} />
+            Páginas Monitoradas
+          </h2>
+          <span className="pages-section-count">{filtered.length} de {mergedData.length} páginas</span>
+        </div>
+
         <FiltersBar>
           {isAdmin && (
             <FilterSelect

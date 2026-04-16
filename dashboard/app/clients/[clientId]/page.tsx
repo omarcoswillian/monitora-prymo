@@ -322,39 +322,63 @@ export default function ClientDetailPage() {
       <div className="container">
         <Breadcrumbs items={[{ label: clientId }]} />
 
-        <header className="header">
-          <div className="header-row">
-            <div>
-              <h1>{clientId}</h1>
-              <p>{hierarchy.length} especialista(s) · {stats.total} página(s)</p>
+        <div className="dashboard-header">
+          <h1>{clientId}</h1>
+          <div className="dashboard-header-stats">
+            <div className="dashboard-header-stat">
+              <span className="stat-dot stat-dot-success" />
+              <strong>{stats.online}</strong> online
+            </div>
+            {stats.offline > 0 && (
+              <div className="dashboard-header-stat">
+                <span className="stat-dot stat-dot-error" />
+                <strong>{stats.offline}</strong> offline
+              </div>
+            )}
+            <div className="dashboard-header-stat">
+              <Globe size={14} />
+              <strong>{stats.total}</strong> páginas
+            </div>
+            <div className="dashboard-header-stat">
+              <Users size={14} />
+              <strong>{hierarchy.length}</strong> especialista(s)
             </div>
           </div>
-        </header>
+        </div>
 
         {/* Summary Cards */}
+        <div className="dashboard-section-title">
+          <Activity size={14} />
+          Status em Tempo Real
+        </div>
         <div className="cards">
           <div className="card">
+            <div className="card-status-indicator" />
             <div className="card-icon"><Globe size={20} /></div>
             <div className="card-label">Total</div>
             <div className="card-value">{stats.total}</div>
           </div>
           <div className={`card ${stats.online > 0 ? "card-highlight-ok" : ""}`}>
+            <div className="card-status-indicator" />
             <div className="card-icon"><CheckCircle2 size={20} /></div>
             <div className="card-label">Online</div>
             <div className="card-value online">{stats.online}</div>
           </div>
           <div className={`card ${stats.offline > 0 ? "card-highlight-danger" : ""}`}>
+            <div className="card-status-indicator" />
             <div className="card-icon"><XCircle size={20} /></div>
             <div className="card-label">Offline</div>
             <div className="card-value offline">{stats.offline}</div>
           </div>
           <div className={`card ${stats.slow > 0 ? "card-highlight-warning" : ""}`}>
+            <div className="card-status-indicator" />
             <div className="card-icon"><Clock size={20} /></div>
             <div className="card-label">Lento</div>
             <div className="card-value slow">{stats.slow}</div>
           </div>
           {uptime7d !== null && (
             <div className="card">
+              <div className="card-status-indicator" />
               <div className="card-icon"><Activity size={20} /></div>
               <div className="card-label">Uptime 7d</div>
               <div className={`card-value ${uptime7d >= 99 ? "online" : uptime7d >= 95 ? "slow" : "offline"}`}>
@@ -382,26 +406,27 @@ export default function ClientDetailPage() {
         )}
 
         {/* Hierarchy: Specialist → Product → Pages */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "2rem", marginBottom: "0.75rem", gap: "1rem" }}>
-          <h2 className="section-title" style={{ margin: 0 }}>
-            <Users size={20} /> Especialistas e Páginas
+        <div className="pages-section-header" style={{ marginTop: "1.5rem" }}>
+          <h2>
+            <Users size={16} />
+            Especialistas e Páginas
           </h2>
-          <div style={{ position: "relative", maxWidth: "300px", flex: 1 }}>
-            <Search size={16} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)" }} />
+          <div className="topbar-search" style={{ maxWidth: "300px", flex: 1 }}>
+            <Search size={16} className="topbar-search-icon" />
             <input
               type="text"
               placeholder="Buscar página, URL, especialista..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input"
-              style={{ paddingLeft: "34px", height: "36px", fontSize: "0.85rem", width: "100%" }}
+              className="topbar-search-input"
             />
           </div>
         </div>
         {searchQuery && (
-          <p className="form-hint" style={{ marginBottom: "0.5rem" }}>
-            {filteredPages.length} resultado(s) para &quot;{searchQuery}&quot;
-          </p>
+          <div className="search-results-banner">
+            <Search size={14} />
+            <span><strong>{filteredPages.length}</strong> resultado(s) para &quot;{searchQuery}&quot;</span>
+          </div>
         )}
 
         {hierarchy.map(spec => (
